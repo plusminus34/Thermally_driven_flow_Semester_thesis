@@ -1,0 +1,12 @@
+Download:
+- Download Qt5
+- Download VTK 8.2 or higher and build from source using Cmake
+-- enable Qt build by enabling 'VTK_Group_Qt'
+-- QT5_Dir = D:\Dev\Qt\5.13.0\msvc2017_64\lib\cmake\Qt5   (adjust to your system)
+- Download the precompiled files for NetCDF-4 64-bit
+
+Build your project and set the following variable in Cmake (adjust to your system):
+- QTDIR: D:\Dev\Qt\5.13.0\msvc2017_64
+
+Set the environment path in Visual studio to find VTK binaries (adjust to your system)
+- PATH=%PATH;D:\Dev\VTK-8.2.0\buildqt16\bin\$(Configuration);C:\Program Files\netCDF 4.7.2\bin
