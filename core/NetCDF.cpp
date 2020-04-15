@@ -1,6 +1,7 @@
 #include "NetCDF.hpp"
 //#include <netcdf.h>
-#include "C:/Program Files/netCDF 4.6.2/include/netcdf.h"
+//#include "C:/Program Files/netCDF 4.6.2/include/netcdf.h"
+#include "C:/Users/Linus/Documents/Semester_thesis/netCDF4.7.4/include/netcdf.h"
 #include "RegularGrid.hpp"
 
 const NetCDF::Info::Attribute& NetCDF::Info::Variable::GetAttributeByName(const std::string& name) const
