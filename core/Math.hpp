@@ -27,6 +27,14 @@ public:
 		for (; i < TDimensions; ++i) mData[i] = 0;
 	}
 
+	Vec(TScalarType x, TScalarType y, TScalarType z) {
+		assert(TDimensions >= 3);
+		mData[0] = x;
+		mData[1] = y;
+		mData[2] = z;
+		for (int = 3; i < TDimensions; ++i) mData[i] = 0;
+	}
+
 	const TScalarType& operator[](size_t index) const {
 		assert(index >= 0 && index < Dimensions);
 		return mData[index];

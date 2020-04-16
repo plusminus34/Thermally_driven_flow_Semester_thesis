@@ -14,7 +14,9 @@ class MainWindow : public QMainWindow
 public:
 	MainWindow();
 
-	SceneWidget* GetSceneWidget();
+	SceneWidget* GetSceneWidget() { return mSceneWidget; }
+
+
 
 private slots:
 	void about();
