@@ -19,6 +19,7 @@ Vec3f traceParticle(const RegVectorField3f& field0, const RegVectorField3f& fiel
 }
 
 Vec3f traceParticle(const RegVectorField3f& field0, float t0, const RegVectorField3f& field1, float t1, Vec3f start, float start_t, float dt) {
+	//currently assumes t0=0 and t1=1
 	float t_a = start_t;
 	float t_b = start_t + 0.5f*dt;
 	float t_c = start_t + dt;

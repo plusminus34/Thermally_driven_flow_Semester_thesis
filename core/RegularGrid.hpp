@@ -160,6 +160,9 @@ public:
 	std::vector<TValue>& GetData() { return mData; }
 	const std::vector<TValue>& GetData() const { return mData; }
 
+	// Replace the domain
+	void UpdateDomain(const TBoundingBox& domain) { mDomain = domain; }
+
 	TDomainCoord GetVoxelSize() const {
 		return (this->mDomain.GetMax() - this->mDomain.GetMin()) / (static_cast<TDomainCoord>(mResolution) - TDomainCoord::ones());
 	}

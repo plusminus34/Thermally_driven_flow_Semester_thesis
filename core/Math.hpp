@@ -32,7 +32,7 @@ public:
 		mData[0] = x;
 		mData[1] = y;
 		mData[2] = z;
-		for (int = 3; i < TDimensions; ++i) mData[i] = 0;
+		for (size_t i = 3; i < TDimensions; ++i) mData[i] = 0;
 	}
 
 	const TScalarType& operator[](size_t index) const {
