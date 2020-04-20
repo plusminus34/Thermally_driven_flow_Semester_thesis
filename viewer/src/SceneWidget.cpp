@@ -72,13 +72,15 @@ void SceneWidget::CreateTestScene()
 		field.SetVertexDataAt(gridCoord, field_val);
 	}
 
+	ParticleTracer<Vec3f, 3> tracer;
+
 	int nSteps = 128;
 	std::vector<Vec3f> dots(nSteps+1);
 	Vec3f start(1, 0, 1);
-	float dt = 0.1;
+	double dt = 0.1;
 	dots[0] = (start);
 	for (int i = 0; i < nSteps; ++i) {
-		Vec3f res = traceParticle(field, dots[i], dt);
+		Vec3f res = tracer.traceParticle(field, dots[i], dt);
 		dots[i+1] = res;
 	}
 
