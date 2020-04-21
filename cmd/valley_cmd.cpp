@@ -7,6 +7,8 @@
 #include <vtkFloatArray.h>
 #include <vtkXMLImageDataWriter.h>
 
+#include "core/ParticleTracer.hpp"
+
 // ---------------------------------------
 // Entry point
 // ---------------------------------------
@@ -19,19 +21,14 @@ int main(int argc, char *argv[])
 	bool custom = false;
 	std::string varname;
 	std::string dimname_0, dimname_1, dimname_2;
-	if (argc >= 3) {
-		varname = argv[2];
-		custom = true;
-	}
-	else {
+	std::cout << "Use custom settings? (0/1)> "; cin >> custom;
+	if (!custom) {
 		varname = "U";
 		dimname_0 = "srlon";
 		dimname_1 = "rlat";
 		dimname_2 = "level";
 	}
 	std::string path(argv[1]);
-
-	std::cout << "Variable is: " << varname << std::endl;
 
 	std::cout << "Reading info object..." << std::endl;
 	// read info object
@@ -61,19 +58,153 @@ int main(int argc, char *argv[])
 	// import field
 	RegScalarField3f* field = NetCDF::ImportScalarField3f(path, varname, dimname_0, dimname_1, dimname_2 );
 	std::cout << "Checking values afterwards...\n";
-	int64_t cap = (int64_t)field->GetResolution()[0] * field->GetResolution()[1] * field->GetResolution()[2];
-	int64_t checkpoint = cap / 50;
+	int64_t field_size = (int64_t)field->GetResolution()[0] * field->GetResolution()[1] * field->GetResolution()[2];
+	int64_t checkpoint = field_size / 50;
+	/*
 #ifdef NDEBUG
 #pragma omp parallel for schedule(dynamic,16)
 #endif
-	for (int64_t linearIndex = 0; linearIndex < cap; ++linearIndex)
+	for (int64_t linearIndex = 0; linearIndex < field_size ; ++linearIndex)
 	{
 		Vec3i gridCoord = field->GetGridCoord(linearIndex);
 		float value = field->GetVertexDataAt(gridCoord);
 		// do something with value
-		//if (linearIndex % checkpoint == 0) { std::cout << linearIndex << " of " << cap<<std::endl; }
+		//if (linearIndex % checkpoint == 0) { std::cout << linearIndex << " of " << field_size<<std::endl; }
 	}
+	*/
 
+	if (!custom) {
+		// init vector field
+		const Vec3i uX(1, 0, 0);
+		const Vec3i uY(0, 1, 0);
+		const Vec3i uZ(0, 0, 1);
+		RegVectorField3f* vecField = new RegVectorField3f(field->GetResolution() - uX - uY, field->GetDomain());
+		int64_t vecField_size = (int64_t)vecField->GetResolution()[0] * vecField->GetResolution()[1] * vecField->GetResolution()[2];
+
+		// U
+		std::cout << varname << ": " << dimname_0 << " " << field->GetResolution()[0] << " x "
+			<< dimname_1 << " " << field->GetResolution()[1] << " x "
+			<< dimname_2 << " " << field->GetResolution()[2] << std::endl;
+		std::cout << "  domain: " << field->GetDomain().GetMin()[0] << " to " << field->GetDomain().GetMax()[0] << "\t"
+			<< field->GetDomain().GetMin()[1] << " to " << field->GetDomain().GetMax()[1] << "\t"
+			<< field->GetDomain().GetMin()[2] << " to " << field->GetDomain().GetMax()[2] << std::endl;
+
+		Vec3f min(field->GetDomain().GetMin());
+		Vec3f max(field->GetDomain().GetMax());
+		std::cout << "Interpolating U...\n";
+		for (int64_t i = 0; i < vecField_size; ++i)
+		{
+			Vec3i gridCoord = vecField->GetGridCoord(i);
+			float value = (field->GetVertexDataAt(gridCoord + uY) + field->GetVertexDataAt(gridCoord + uX + uY)) * 0.5f;
+			Vec3f v(value, 0, 0);
+			vecField->SetVertexDataAt(gridCoord, v);
+		}
+
+
+		// V
+		varname = "V"; dimname_0 = "rlon"; dimname_1 = "srlat";
+		field = NetCDF::ImportScalarField3f(path, varname, dimname_0, dimname_1, dimname_2);
+		std::cout << varname << ": " << dimname_0 << " " << field->GetResolution()[0] << " x "
+			<< dimname_1 << " " << field->GetResolution()[1] << " x "
+			<< dimname_2 << " " << field->GetResolution()[2] << std::endl;
+		std::cout << "  domain: " << field->GetDomain().GetMin()[0] << " to " << field->GetDomain().GetMax()[0] << "\t"
+			<< field->GetDomain().GetMin()[1] << " to " << field->GetDomain().GetMax()[1] << "\t"
+			<< field->GetDomain().GetMin()[2] << " to " << field->GetDomain().GetMax()[2] << std::endl;
+
+		Vec3f minV(field->GetDomain().GetMin());
+		Vec3f maxV(field->GetDomain().GetMax());
+		for (int i = 0; i < 3; ++i) {
+			min[i] = (min[i] > minV[i] ? min[i] : minV[i]);
+			max[i] = (max[i] < maxV[i] ? max[i] : maxV[i]);
+		}
+		std::cout << "Interpolating V...\n";
+		for (int64_t i = 0; i < vecField_size; ++i)
+		{
+			Vec3i gridCoord = vecField->GetGridCoord(i);
+			float value = (field->GetVertexDataAt(gridCoord + uX) + field->GetVertexDataAt(gridCoord + uX + uY)) * 0.5f;
+			Vec3f v = vecField->GetVertexDataAt(gridCoord); v[1] = value;
+			vecField->SetVertexDataAt(gridCoord, v);
+		}
+
+		// W
+		delete field;
+		varname = "W"; dimname_1 = "rlat"; dimname_2 = "level1";
+		field = NetCDF::ImportScalarField3f(path, varname, dimname_0, dimname_1, dimname_2);
+		std::cout << varname << ": " << dimname_0 << " " << field->GetResolution()[0] << " x "
+			<< dimname_1 << " " << field->GetResolution()[1]
+			<< " x " << dimname_2 << " " << field->GetResolution()[2] << std::endl;
+		std::cout << "  domain: " << field->GetDomain().GetMin()[0] << " to " << field->GetDomain().GetMax()[0] << "\t"
+			<< field->GetDomain().GetMin()[1] << " to " << field->GetDomain().GetMax()[1] << "\t"
+			<< field->GetDomain().GetMin()[2] << " to " << field->GetDomain().GetMax()[2] << std::endl;
+
+		Vec3f minW(field->GetDomain().GetMin());
+		Vec3f maxW(field->GetDomain().GetMax());
+		for (int i = 0; i < 3; ++i) {
+			min[i] = (min[i] > minW[i] ? min[i] : minW[i]);
+			max[i] = (max[i] < maxW[i] ? max[i] : maxW[i]);
+		}
+		BoundingBox3d domain(min, max);
+		vecField->UpdateDomain(domain);
+		std::cout << "Interpolating W...\n";
+		for (int64_t i = 0; i < vecField_size; ++i)
+		{
+			Vec3i gridCoord = vecField->GetGridCoord(i);
+			float value = (field->GetVertexDataAt(gridCoord + uX + uY) + field->GetVertexDataAt(gridCoord + uX + uY + uZ)) * 0.5f;
+			Vec3f v = vecField->GetVertexDataAt(gridCoord); v[2] = value;
+			vecField->SetVertexDataAt(gridCoord, v);
+		}
+
+		int input = 0;
+		std::cout << "write into vti? (0/1)> "; cin >> input;
+		if (input){
+			delete field;
+
+
+			vtkSmartPointer<vtkImageData> imageData = vtkSmartPointer<vtkImageData>::New();
+			imageData->SetDimensions(vecField->GetResolution().ptr());
+			double spacing[] = {
+				(vecField->GetDomain().GetMax()[0] - vecField->GetDomain().GetMin()[0]) / (vecField->GetResolution()[0] - 1.),
+				(vecField->GetDomain().GetMax()[1] - vecField->GetDomain().GetMin()[1]) / (vecField->GetResolution()[1] - 1.),
+				(vecField->GetDomain().GetMax()[2] - vecField->GetDomain().GetMin()[2]) / (vecField->GetResolution()[2] - 1.),
+			};
+			imageData->SetSpacing(spacing);
+			imageData->SetNumberOfScalarComponents(3, imageData->GetInformation());
+			std::cout << "Filling image data..." << std::endl;
+			// fill image data
+			vtkSmartPointer<vtkFloatArray> floatArray = vtkSmartPointer<vtkFloatArray>::New();
+			floatArray->SetNumberOfComponents(3);
+			int numTuples = vecField_size;
+			int tuple_checkpoint = numTuples / 50;
+			floatArray->SetNumberOfTuples(numTuples);
+			floatArray->SetName(varname.c_str());
+			for (int linearIndex = 0; linearIndex < numTuples; ++linearIndex)
+			{
+				Vec3i gridCoord = vecField->GetGridCoord(linearIndex);
+				Vec3d dataVec = vecField->GetVertexDataAt(gridCoord);
+				floatArray->SetTuple3(linearIndex, dataVec[0], dataVec[1], dataVec[2]);
+				if (linearIndex % tuple_checkpoint == 0) { std::cout << linearIndex << " of " << numTuples << std::endl; }
+			}
+			imageData->GetPointData()->AddArray(floatArray);
+
+			delete vecField;
+			std::cout << "Writing to file..." << std::endl;
+			// write to file
+			vtkSmartPointer<vtkXMLImageDataWriter> imageWriter = vtkSmartPointer<vtkXMLImageDataWriter>::New();
+			std::string filename = "UVW.vti";
+			imageWriter->SetFileName(filename.c_str());
+			imageWriter->SetInputData(imageData);
+			imageWriter->Update();
+
+			std::cout << "Done." << std::endl;
+			// delete resources and return
+			return 0;
+		}
+		else {
+			delete vecField;
+		}
+	}
+	int input = 0;
+	std::cout << "continue? "; cin >> input; if (!input) return 0;
 	std::cout << "Allocating image data object..." << std::endl;
 	// allocate image data object
 	vtkSmartPointer<vtkImageData> imageData = vtkSmartPointer<vtkImageData>::New();
