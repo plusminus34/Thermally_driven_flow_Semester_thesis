@@ -55,14 +55,14 @@ SceneWidget::SceneWidget()
 	CreateTestScene();
 }
 
-const double M_PI = 3.14159265358979;
+const double PI = 3.14159265358979;
 
 class ABCFlow : public ISampleField<Vec4f,4> {
 public:
 	virtual Vec4f Sample(const Vec<double, 4>& coord) const override {
 		return Vec4f(
-			((1 - exp(-0.1*coord[3]))*sin(2.0*M_PI*coord[3]) + sqrt(3))*sin(coord[2]) + cos(coord[1]),
-			((1 - exp(-0.1*coord[3]))*sin(2.0*M_PI*coord[3]) + sqrt(3))*cos(coord[2]) + sqrt(2)*sin(coord[0]),
+			((1 - exp(-0.1*coord[3]))*sin(2.0*PI*coord[3]) + sqrt(3))*sin(coord[2]) + cos(coord[1]),
+			((1 - exp(-0.1*coord[3]))*sin(2.0*PI*coord[3]) + sqrt(3))*cos(coord[2]) + sqrt(2)*sin(coord[0]),
 			sin(coord[1]) + sqrt(2)*cos(coord[0]),
 			1
 		);
@@ -78,24 +78,22 @@ public:
 
 void SceneWidget::CreateTestScene()
 {
-	const int sampled_field_resolution = 20;
+	// Settings
 
-	const Vec3i res(10, 10, 10);
-	const Vec3d p1(-1, -1, -1);
-	const Vec3d p2(1, 1, 1);
-	const BoundingBox3d bb(p1, p2);
-	RegVectorField3f field(res, bb);
+	const int sampled_field_resolution = 2;
+	const double t0 = 0.0;
+	const double t1 = 2*PI;
+	const double dt = 0.2;
 
-	const int numCells = res[0] * res[1] * res[2];
-	for (size_t i = 0; i < numCells; ++i)
-	{
-		Vec3i gridCoord = field.GetGridCoord(i);
-		Vec3d coord = field.GetCoordAt(gridCoord);
-		Vec3f field_val(coord[1], -coord[0], -0.5*coord[2]);
-		field.SetVertexDataAt(gridCoord, field_val);
-	}
+	// 
 
+	ParticleTracer<Vec2f, 2> tracer2;
+	ParticleTracer<Vec3f, 3> tracer3;
+	ParticleTracer<Vec4f, 4> tracer4;
+
+	ABCFlow abcFlow;
 	CenterField centerField_analytic;
+
 	const Vec2i res2(sampled_field_resolution, sampled_field_resolution);
 	const BoundingBox2d bb2d(Vec2d(-2, -2), Vec2d(2, 2));
 	RegVectorField2f centerField_sampled(res2, bb2d);
@@ -105,57 +103,41 @@ void SceneWidget::CreateTestScene()
 		centerField_sampled.SetVertexDataAt(gridCoord, centerField_analytic.Sample(coord));
 	}
 
-	ParticleTracer<Vec3f, 3> tracer;
+	const int nSteps = ceil((t1 - t0) / dt);
 
-	ParticleTracer<Vec4f, 4Ui64> tracer4;
-	ABCFlow abcFlow;
+	int nPaths = 6;
+	std::vector<std::vector<Vec3f>> paths(nPaths);
+	std::vector<Vec3f> pathColors(nPaths);
+	for (int i = 0; i < nPaths; ++i) paths[i].resize(nSteps + 1);
 
-	int nSteps = 128;
-	std::vector<Vec3f> dots(nSteps+1);
-
-	std::vector<Vec4f> dots2(nSteps + 1);
-	std::vector<Vec3f> dots2_vec3(dots2.size());
-	dots2[0] = Vec4f(1, 1, 1, 0);
-
-	std::vector<Vec2f> dots3(nSteps + 1);
-	std::vector<Vec3f> dots3_vec3(dots3.size());
-	dots3[0] = Vec2f(1, 0);
-	ParticleTracer<Vec2f, 2> tracer2;
-
-	Vec3f start(1, 0, 1);
-	double dt = 0.1;
-	dots[0] = (start);
-	for (int i = 0; i < nSteps; ++i) {
-		Vec3f res = tracer.traceParticle(field, dots[i], dt);
-		dots[i+1] = res;
-		dots2[i + 1] = tracer4.traceParticle(abcFlow, dots2[i], dt);
-		dots3[i + 1] = tracer2.traceParticle(centerField_analytic, dots3[i], dt);
+	{
+		int path = 0;
+		pathColors[path] = Vec3f(1, 0, 0);
+		Vec2f position(0.5f, 0);
+		paths[path][0] = Vec3f(position[0], position[1], 0);
+		for (int i = 0; i < nSteps; ++i) {
+			position = tracer2.traceParticle(centerField_analytic, position, dt);
+			paths[path][i+1] = Vec3f(position[0], position[1], 0);
+		}
 	}
-	for (int i = 0; i < dots2.size();++i) {
-		dots2_vec3[i] = Vec3f(dots2[i][0], dots2[i][1], dots2[i][2]);
+	{
+		int path = 3;
+		pathColors[path] = Vec3f(1, 0, 0.4f);
+		Vec2f position(0.505f, 0);
+		paths[path][0] = Vec3f(position[0], position[1], 0);
+		for (int i = 0; i < nSteps; ++i) {
+			position = tracer2.traceParticle(centerField_sampled, position, dt);
+			paths[path][i + 1] = Vec3f(position[0], position[1], 0);
+		}
 	}
-	for (int i = 0; i < dots3.size(); ++i) {
-		dots3_vec3[i] = Vec3f(dots3[i][0], dots3[i][1], 0.f);
-	}
-
 
 	vtkNew<vtkNamedColors> colors;
 
-//	vtkNew<vtkSphereSource> sphereSource;
-
-//	vtkNew<vtkPolyDataMapper> sphereMapper;
-//	sphereMapper->SetInputConnection(sphereSource->GetOutputPort());
-
-//	vtkNew<vtkActor> sphereActor;
-//	sphereActor->SetMapper(sphereMapper);
-//	sphereActor->GetProperty()->SetColor(colors->GetColor4d("Tomato").GetData());
-
 	vtkNew<vtkRenderer> renderer;
-//	renderer->AddActor(sphereActor);
-	renderer->AddActor(createLineActor(dots, Vec3f(1, 0, 0)));
-	renderer->AddActor(createLineActor(dots2_vec3, Vec3f(1, 0, 1)));
-	renderer->AddActor(createLineActor(dots3_vec3, Vec3f(1, 1, 1)));
 	renderer->SetBackground(colors->GetColor3d("SteelBlue").GetData());
+
+	renderer->AddActor(createLineActor(paths[0], pathColors[0]));
+	renderer->AddActor(createLineActor(paths[3], pathColors[3]));
 
 	GetRenderWindow()->AddRenderer(renderer);
 	GetRenderWindow()->SetWindowName("RenderWindowNoUIFile");
