@@ -27,12 +27,28 @@ public:
 		for (; i < TDimensions; ++i) mData[i] = 0;
 	}
 
+	Vec(TScalarType x, TScalarType y) {
+		assert(TDimensions >= 2);
+		mData[0] = x;
+		mData[1] = y;
+		for (size_t i = 2; i < TDimensions; ++i) mData[i] = 0;
+	}
+
 	Vec(TScalarType x, TScalarType y, TScalarType z) {
 		assert(TDimensions >= 3);
 		mData[0] = x;
 		mData[1] = y;
 		mData[2] = z;
 		for (size_t i = 3; i < TDimensions; ++i) mData[i] = 0;
+	}
+
+	Vec(TScalarType x, TScalarType y, TScalarType z, TScalarType w) {
+		assert(TDimensions >= 4);
+		mData[0] = x;
+		mData[1] = y;
+		mData[2] = z;
+		mData[3] = w;
+		for (size_t i = 4; i < TDimensions; ++i) mData[i] = 0;
 	}
 
 	const TScalarType& operator[](size_t index) const {
@@ -415,6 +431,7 @@ protected:
 
 typedef Vec<float, 2> Vec2f; 
 typedef Vec<float, 3> Vec3f;
+typedef Vec<float, 4> Vec4f;
 typedef Vec<double, 2> Vec2d;
 typedef Vec<double, 3> Vec3d;
 typedef Vec<int, 2> Vec2i;
