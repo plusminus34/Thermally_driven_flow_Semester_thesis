@@ -80,10 +80,12 @@ void SceneWidget::CreateTestScene()
 {
 	// Settings
 
-	const int sampled_field_resolution = 2;
+	const int sampled_field_resolution = 30;
 	const double t0 = 0.0;
 	const double t1 = 2*PI;
-	const double dt = 0.2;
+	const double dt = 0.25;
+
+	const double bb_size = 16.0;
 
 	// 
 
@@ -91,7 +93,7 @@ void SceneWidget::CreateTestScene()
 	ParticleTracer<Vec3f, 3> tracer3;
 	ParticleTracer<Vec4f, 4> tracer4;
 
-	ABCFlow abcFlow;
+	ABCFlow abcFlow_analytic;
 	CenterField centerField_analytic;
 
 	const Vec2i res2(sampled_field_resolution, sampled_field_resolution);
@@ -103,31 +105,59 @@ void SceneWidget::CreateTestScene()
 		centerField_sampled.SetVertexDataAt(gridCoord, centerField_analytic.Sample(coord));
 	}
 
+	const Vec4i res4(sampled_field_resolution, sampled_field_resolution, sampled_field_resolution, sampled_field_resolution);
+	const BoundingBox<Vec4d> bb4d(Vec4d(-bb_size, -bb_size, -bb_size, -bb_size), Vec4d(bb_size, bb_size, bb_size, bb_size));
+	RegularGrid<Vec4f,4> abcFlow_sampled(res4, bb4d);
+	for (size_t i = 0; i < res4[0] * res4[1] * res4[2] * res4[3]; ++i) {
+		Vec4i gridCoord = abcFlow_sampled.GetGridCoord(i);
+		Vec4d coord = abcFlow_sampled.GetCoordAt(gridCoord);
+		abcFlow_sampled.SetVertexDataAt(gridCoord, abcFlow_analytic.Sample(coord));
+	}
+
 	const int nSteps = ceil((t1 - t0) / dt);
 
-	int nPaths = 6;
+	int nPaths = 12;
 	std::vector<std::vector<Vec3f>> paths(nPaths);
 	std::vector<Vec3f> pathColors(nPaths);
 	for (int i = 0; i < nPaths; ++i) paths[i].resize(nSteps + 1);
 
-	{
-		int path = 0;
+	for (int p = 0; p < 3;++p) {
+		int path = p;
 		pathColors[path] = Vec3f(1, 0, 0);
-		Vec2f position(0.5f, 0);
+		Vec2f position(0.5f*(p+1), 0);
 		paths[path][0] = Vec3f(position[0], position[1], 0);
 		for (int i = 0; i < nSteps; ++i) {
-			position = tracer2.traceParticle(centerField_analytic, position, dt);
+			Vec2d positiond(position[0], position[1]);
+			position = tracer2.traceParticle(centerField_analytic, positiond, dt);
 			paths[path][i+1] = Vec3f(position[0], position[1], 0);
 		}
 	}
-	{
-		int path = 3;
-		pathColors[path] = Vec3f(1, 0, 0.4f);
-		Vec2f position(0.505f, 0);
+	for (int p = 0; p < 3;++p) {
+		int path = p+3;
+		pathColors[path] = Vec3f(0.5f, 0.7f, 0.9f);
+		Vec2f position(0.5f*(p + 1) + 0.005f, 0);
 		paths[path][0] = Vec3f(position[0], position[1], 0);
 		for (int i = 0; i < nSteps; ++i) {
-			position = tracer2.traceParticle(centerField_sampled, position, dt);
+			Vec2d positiond(position[0], position[1]);
+			position = tracer2.traceParticle(centerField_sampled, positiond, dt);
 			paths[path][i + 1] = Vec3f(position[0], position[1], 0);
+		}
+	}
+	for (int p = 6; p < 12; ++p) {
+		int path = p;
+		pathColors[path] = Vec3f(0.2f, 0.9f, 0.1f);
+		if (p % 2 == 0)pathColors[path][0] = 0.8f;
+		Vec4f position(0.5f, -0.2f + 0.05f*p, 0.1f, 0);
+		paths[path][0] = Vec3f(position[0], position[1], position[2]);
+		for (int i = 0; i < nSteps; ++i) {
+			Vec4d positiond(position[0], position[1], position[2], position[3]);
+			if (p % 2 == 0) {
+				position = tracer4.traceParticle(abcFlow_analytic, positiond, dt);
+			}
+			else {
+				position = tracer4.traceParticle(abcFlow_sampled, positiond, dt);
+			}
+			paths[path][i + 1] = Vec3f(position[0], position[1], position[2]);
 		}
 	}
 
@@ -136,8 +166,9 @@ void SceneWidget::CreateTestScene()
 	vtkNew<vtkRenderer> renderer;
 	renderer->SetBackground(colors->GetColor3d("SteelBlue").GetData());
 
-	renderer->AddActor(createLineActor(paths[0], pathColors[0]));
-	renderer->AddActor(createLineActor(paths[3], pathColors[3]));
+	for (int i = 0; i < paths.size(); ++i) {
+		renderer->AddActor(createLineActor(paths[i], pathColors[i]));
+	}
 
 	GetRenderWindow()->AddRenderer(renderer);
 	GetRenderWindow()->SetWindowName("RenderWindowNoUIFile");

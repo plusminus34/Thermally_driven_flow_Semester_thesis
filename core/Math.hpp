@@ -434,8 +434,10 @@ typedef Vec<float, 3> Vec3f;
 typedef Vec<float, 4> Vec4f;
 typedef Vec<double, 2> Vec2d;
 typedef Vec<double, 3> Vec3d;
+typedef Vec<double, 4> Vec4d;
 typedef Vec<int, 2> Vec2i;
 typedef Vec<int, 3> Vec3i;
+typedef Vec<int, 4> Vec4i;
 
 // Computes the cross product of two vectors
 template<typename TScalarType>
