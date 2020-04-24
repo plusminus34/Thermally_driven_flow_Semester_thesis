@@ -5,6 +5,7 @@
 #include <vtkNamedColors.h>
 #include <vtkRenderer.h>
 #include <vtkProperty.h>
+#include <vtkOutlineFilter.h>
 
 #include "core/Math.hpp"
 #include <vtkPoints.h>
@@ -85,7 +86,7 @@ void SceneWidget::CreateTestScene()
 	const double t1 = 2*PI;
 	const double dt = 0.25;
 
-	const double bb_size = 16.0;
+	const double bb_size = 7.0;
 
 	// 
 
@@ -121,26 +122,21 @@ void SceneWidget::CreateTestScene()
 	std::vector<Vec3f> pathColors(nPaths);
 	for (int i = 0; i < nPaths; ++i) paths[i].resize(nSteps + 1);
 
-	for (int p = 0; p < 3;++p) {
+	for (int p = 0; p < 6;++p) {
 		int path = p;
 		pathColors[path] = Vec3f(1, 0, 0);
-		Vec2f position(0.5f*(p+1), 0);
+		if (p % 2 == 0) pathColors[path][2] = 0.7f;
+		Vec2f position(0.5f + 0.1f*p, 0);
 		paths[path][0] = Vec3f(position[0], position[1], 0);
 		for (int i = 0; i < nSteps; ++i) {
 			Vec2d positiond(position[0], position[1]);
-			position = tracer2.traceParticle(centerField_analytic, positiond, dt);
+			if (p % 2 == 0) {
+				position = tracer2.traceParticle(centerField_sampled, positiond, dt);
+			}
+			else {
+				position = tracer2.traceParticle(centerField_analytic, positiond, dt);
+			}
 			paths[path][i+1] = Vec3f(position[0], position[1], 0);
-		}
-	}
-	for (int p = 0; p < 3;++p) {
-		int path = p+3;
-		pathColors[path] = Vec3f(0.5f, 0.7f, 0.9f);
-		Vec2f position(0.5f*(p + 1) + 0.005f, 0);
-		paths[path][0] = Vec3f(position[0], position[1], 0);
-		for (int i = 0; i < nSteps; ++i) {
-			Vec2d positiond(position[0], position[1]);
-			position = tracer2.traceParticle(centerField_sampled, positiond, dt);
-			paths[path][i + 1] = Vec3f(position[0], position[1], 0);
 		}
 	}
 	for (int p = 6; p < 12; ++p) {
@@ -163,9 +159,20 @@ void SceneWidget::CreateTestScene()
 
 	vtkNew<vtkNamedColors> colors;
 
+	vtkNew<vtkSphereSource> sphere;
+	sphere->SetRadius(bb_size);
+	sphere->Update();
+	vtkNew<vtkOutlineFilter> outline;
+	outline->SetInputData(sphere->GetOutput());
+	vtkNew<vtkPolyDataMapper> outlineMapper;
+	outlineMapper->SetInputConnection(outline->GetOutputPort());
+	vtkNew<vtkActor> outlineActor;
+	outlineActor->SetMapper(outlineMapper);
+
 	vtkNew<vtkRenderer> renderer;
 	renderer->SetBackground(colors->GetColor3d("SteelBlue").GetData());
 
+	renderer->AddActor(outlineActor);
 	for (int i = 0; i < paths.size(); ++i) {
 		renderer->AddActor(createLineActor(paths[i], pathColors[i]));
 	}
