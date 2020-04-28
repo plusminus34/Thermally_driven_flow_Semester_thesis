@@ -273,16 +273,24 @@ int main(int argc, char *argv[])
 		Vec3d bb_max(bounds[1], bounds[3], bounds[5]);
 		RegVectorField3f field(res, BoundingBox3d(bb_min, bb_max));
 
-		imageData->Print(cout);
-		for (int i = 0; i < res[0]; ++i) {
-			for (int j = 0; j < res[1]; ++j) {
-				for (int k = 0; k < res[2]; ++k) {
-					for (int l = 0; l < num_components;++l) {
-						double a = imageData->GetScalarComponentAsDouble(i, j, k, l);
-						if (a != 0) cout << "ijk " << i << " " << j << " " << k << " [" << l << "]: " << a << endl;
-					}
-				}
+		vtkSmartPointer<vtkPointData> pointData = imageData->GetPointData();
+		vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray("W");
+
+		int nPts = imageData->GetNumberOfPoints();
+		assert(dataArray->GetNumberOfTuples() == nPts);
+		for (int i = 0; i < nPts; ++i) {
+			double* pt = dataArray->GetTuple3(i);
+			//cout << "Pt " << i << ": " << pt[0] << "\t" << pt[1] << "\t" << pt[2] << endl;
+			Vec3i coord = field.GetGridCoord(i);
+			field.SetVertexDataAt(coord, Vec3f(pt[0], pt[1], pt[2]));
+			if (i % (nPts / 10) == 0) {
+				cout << "  " << i << " of " << nPts << endl;
 			}
+		}
+
+		{
+			Vec3f eyo = field.Sample(Vec3d(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[3] + bounds[2]), 0.5*(bounds[4] + bounds[5])));
+			cout << "sampled " << eyo[0] << " " << eyo[1] << " " << eyo[2] << endl;
 		}
 
 		cout << "THE END\n";
