@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	std::cout << "Choose option:\n";
 	std::cout << "0:\tRead and interpolate UVW field\n";
 	std::cout << "1:\tRead custom field field\n";
-	std::cout << "2:\tRead UVW for particle tracing and stuff\n> ";
+	std::cout << "2:\tRead UVW and trace particles\n> ";
 	cin >> input;
 	if (input < 2){
 		std::string varname;
@@ -261,12 +261,10 @@ int main(int argc, char *argv[])
 		imageReader->SetFileName(filename.c_str());
 		imageReader->Update();
 		vtkSmartPointer<vtkImageData> imageData = imageReader->GetOutput();
+		cout << "Got imageData\n";
 		int* dims = imageData->GetDimensions();
 		cout << "Dimensions: " << dims[0] << " x " << dims[1] << " x " << dims[2] << endl;
-		int num_components = imageData->GetNumberOfScalarComponents();
-		cout << "Number of scalar components: " << num_components << endl;
 		double* bounds = imageData->GetBounds();
-		cout << "Bounds: " << bounds[0] << " - " << bounds[1] << "\t" << bounds[2] << " x " << bounds[3] << "\t" << bounds[4] << " x " << bounds[5] << endl;
 
 		Vec3i res(dims[0], dims[1], dims[2]);
 		Vec3d bb_min(bounds[0], bounds[2], bounds[3]);
@@ -274,10 +272,11 @@ int main(int argc, char *argv[])
 		RegVectorField3f field(res, BoundingBox3d(bb_min, bb_max));
 
 		vtkSmartPointer<vtkPointData> pointData = imageData->GetPointData();
-		vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray("W");
+		vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray("W");// apparently it's still called W ... TODO change that
 
 		int nPts = imageData->GetNumberOfPoints();
 		assert(dataArray->GetNumberOfTuples() == nPts);
+		cout << "Filling field ...\n";
 		for (int i = 0; i < nPts; ++i) {
 			double* pt = dataArray->GetTuple3(i);
 			//cout << "Pt " << i << ": " << pt[0] << "\t" << pt[1] << "\t" << pt[2] << endl;
@@ -287,13 +286,61 @@ int main(int argc, char *argv[])
 				cout << "  " << i << " of " << nPts << endl;
 			}
 		}
+		//TODO imageData will no longer be needed
 
-		{
-			Vec3f eyo = field.Sample(Vec3d(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[3] + bounds[2]), 0.5*(bounds[4] + bounds[5])));
-			cout << "sampled " << eyo[0] << " " << eyo[1] << " " << eyo[2] << endl;
+		cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
+		double tracing_bounds[6];
+		double spacing;
+		int paths_dim[3];
+		int nPaths;
+		double t0, t1, dt;
+		int nSteps;
+		bool confirmed = false;
+		while (!confirmed) {
+			cout << "Input bounds for tracing (Format: min_x max_x min_y max_y min_z max_z)\n> ";
+			for (int i = 0; i < 6; ++i) {
+				cin >> tracing_bounds[i];
+				if (i % 2 == 0) tracing_bounds[i] = std::max(tracing_bounds[i], bounds[i]);
+				else tracing_bounds[i] = std::min(tracing_bounds[i], bounds[i]);
+			}
+			cout << "Input spacing between individual starting points> ";
+			cin >> spacing;
+			for (int i = 0; i < 3; ++i) {
+				paths_dim[i] = floor((tracing_bounds[2 * i + 1] - tracing_bounds[2 * i]) / spacing);
+				assert(paths_dim[i] > 0);
+			}
+			nPaths = paths_dim[0] * paths_dim[1] * paths_dim[2];
+			cout << "Input start and end time (Format: t0 t1)> "; cin >> t0; cin >> t1;
+			assert(t1 > t0);
+			cout << "Input timestep> "; cin >> dt;
+			assert(dt > 0);
+			nSteps = ceil((t1 - t0) / dt);
+			cout << "This will trace a total of " << nPaths << " trajectories (" << paths_dim[0] << " x " << paths_dim[1] << " x " << paths_dim[2] << ")\n";
+			cout << "There will be up to "<<nSteps<<" steps per trajectory\n";
+			cout << "Confirm (0/1)> "; cin >> confirmed;
 		}
 
+		std::vector<std::vector<Vec3f>> paths(nPaths);
+
+		ParticleTracer<Vec3f, 3> tracer;
+		for (int i = 0; i < paths_dim[0];++i) {
+			for (int j = 0; j < paths_dim[1]; ++j) {
+				for (int k = 0; k < paths_dim[2]; ++k) {
+					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
+					Vec3f position = Vec3f(tracing_bounds[0] + i*spacing, tracing_bounds[2] + j * spacing, tracing_bounds[3] + k * spacing);
+					paths[path].push_back(position);
+					for (int l = 0; l < nSteps; ++l) {
+						Vec3d pos_d(position[0], position[1], position[2]);
+						position = tracer.traceParticle(field, pos_d, dt);
+						paths[path].push_back(position);
+					}
+				}
+			}
+		}
+
+		//TODO
 		cout << "THE END\n";
+		cout << "Trajectories are discarded\n";
 	}
 	return 0;
 }
