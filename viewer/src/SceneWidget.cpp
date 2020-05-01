@@ -14,6 +14,10 @@
 #include "core/ParticleTracer.hpp"
 #include "core/ISampleField.hpp"
 
+#include <vtkXMLImageDataReader.h>
+#include <vtkImageData.h>
+#include <vtkPointData.h>
+
 //copypasted(mostly) from Exercise 4
 // creates an actor that draws a line in a given color
 vtkSmartPointer<vtkActor> createLineActor(const std::vector<Vec3f>& line, const Vec3f& color)
@@ -83,8 +87,8 @@ void SceneWidget::CreateTestScene()
 
 	const int sampled_field_resolution = 30;
 	const double t0 = 0.0;
-	const double t1 = 2*PI;
-	const double dt = 0.25;
+	const double t1 = 2*PI*10;
+	const double dt = 0.01;
 
 	const double bb_size = 7.0;
 
@@ -117,11 +121,12 @@ void SceneWidget::CreateTestScene()
 
 	const int nSteps = ceil((t1 - t0) / dt);
 
-	int nPaths = 12;
+	int nPaths = 100;//12;
 	std::vector<std::vector<Vec3f>> paths(nPaths);
 	std::vector<Vec3f> pathColors(nPaths);
 	for (int i = 0; i < nPaths; ++i) paths[i].resize(nSteps + 1);
 
+	/*
 	for (int p = 0; p < 6;++p) {
 		int path = p;
 		pathColors[path] = Vec3f(1, 0, 0);
@@ -155,12 +160,77 @@ void SceneWidget::CreateTestScene()
 			}
 			paths[path][i + 1] = Vec3f(position[0], position[1], position[2]);
 		}
-	}
+	}*/
+	
+		//Read UVW and convert into RegVectorfield
+		vtkNew<vtkXMLImageDataReader> imageReader;
+		std::string filename = "../cmd/UVW.vti";
+		cout << "Reading file " << filename << endl;
+		imageReader->SetFileName(filename.c_str());
+		imageReader->Update();
+		vtkSmartPointer<vtkImageData> imageData = imageReader->GetOutput();
+		cout << "Got imageData\n";
+		int* dims = imageData->GetDimensions();
+		cout << "Dimensions: " << dims[0] << " x " << dims[1] << " x " << dims[2] << endl;
+		int num_components = imageData->GetNumberOfScalarComponents();
+		cout << "Number of scalar components: " << num_components << endl;
+		double* bounds = imageData->GetBounds();
+		cout << "Bounds: " << bounds[0] << " - " << bounds[1] << "\t" << bounds[2] << " x " << bounds[3] << "\t" << bounds[4] << " x " << bounds[5] << endl;
+
+		Vec3i res(dims[0], dims[1], dims[2]);
+		Vec3d bb_min(bounds[0], bounds[2], bounds[3]);
+		Vec3d bb_max(bounds[1], bounds[3], bounds[5]);
+		RegVectorField3f field(res, BoundingBox3d(bb_min, bb_max));
+
+		vtkSmartPointer<vtkPointData> pointData = imageData->GetPointData();
+		vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray("W");// apparently it's still called W ... TODO change that
+
+		int nPts = imageData->GetNumberOfPoints();
+		assert(dataArray->GetNumberOfTuples() == nPts);
+		cout << "Filling field ...\n";
+		for (int i = 0; i < nPts; ++i) {
+			double* pt = dataArray->GetTuple3(i);
+			//cout << "Pt " << i << ": " << pt[0] << "\t" << pt[1] << "\t" << pt[2] << endl;
+			Vec3i coord = field.GetGridCoord(i);
+			field.SetVertexDataAt(coord, Vec3f(pt[0], pt[1], pt[2]));
+			if (i % (nPts / 10) == 0) {
+				cout << "  " << i << " of " << nPts << endl;
+			}
+		}
+
+		Vec3f midpoint(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[2] + bounds[3]), 0.5*(bounds[4] + bounds[5]));
+		Vec3f eee((bounds[1] - bounds[0]) / dims[0], (bounds[3] - bounds[2]) / dims[1], (bounds[5] - bounds[4]) / dims[2]);
+		for (int i = 0; i < 10; ++i) {
+			for (int j = 0; j < 10; ++j) {
+				int path = i * 10 + j;
+				pathColors[path] = Vec3f(0.7f + i*0.01f, 0.9f + j*0.01f, 0.3f);
+				Vec3f position = midpoint + Vec3f(i, j, 0)*eee;
+				paths[path][0] = Vec3f(position[0], position[1], position[2]);
+				for (int k = 0; k < nSteps; ++k) {
+					Vec3d positiond(position[0], position[1], position[2]);
+					position = tracer3.traceParticle(field, positiond, dt);
+					paths[path][k + 1] = Vec3f(position[0], position[1], position[2]);
+					if (position[0] < bounds[0] || position[0] > bounds[1] ||
+						position[1] < bounds[2] || position[1] > bounds[3] ||
+						position[2] < bounds[4] || position[2] > bounds[5]) {
+						paths[path].resize(k + 2);
+						break;
+					}
+				}
+			}
+			Vec3f eyo = field.Sample(Vec3d(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[3] + bounds[2]), 0.5*(bounds[4] + bounds[5])));
+			cout << "sampled " << eyo[0] << " " << eyo[1] << " " << eyo[2] << endl;
+		}
+
+		cout << "THE END\n";
+	
 
 	vtkNew<vtkNamedColors> colors;
 
 	vtkNew<vtkSphereSource> sphere;
-	sphere->SetRadius(bb_size);
+	//sphere->SetRadius(bb_size);
+	//sphere->SetRadius(bounds[1] - bounds[0]);
+	//sphere->SetCenter(midpoint[0], midpoint[1], midpoint[2]);
 	sphere->Update();
 	vtkNew<vtkOutlineFilter> outline;
 	outline->SetInputData(sphere->GetOutput());
@@ -168,6 +238,9 @@ void SceneWidget::CreateTestScene()
 	outlineMapper->SetInputConnection(outline->GetOutputPort());
 	vtkNew<vtkActor> outlineActor;
 	outlineActor->SetMapper(outlineMapper);
+	double scale[] = { bounds[1] - bounds[0], bounds[3] - bounds[2],bounds[5] - bounds[4] };
+	outlineActor->SetScale(scale);
+	outlineActor->SetPosition(midpoint[0], midpoint[1], midpoint[2]);
 
 	vtkNew<vtkRenderer> renderer;
 	renderer->SetBackground(colors->GetColor3d("SteelBlue").GetData());
