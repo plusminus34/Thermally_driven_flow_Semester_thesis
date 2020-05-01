@@ -8,6 +8,7 @@
 #include <vtkXMLImageDataWriter.h>
 #include <vtkXMLImageDataReader.h>
 
+#include "core/CoordinateTransform.hpp"
 #include "core/ParticleTracer.hpp"
 
 // ---------------------------------------
@@ -23,7 +24,7 @@ int main(int argc, char *argv[])
 	bool custom = false;
 	std::cout << "Choose option:\n";
 	std::cout << "0:\tRead and interpolate UVW field\n";
-	std::cout << "1:\tRead custom field field\n";
+	std::cout << "1:\tRead custom field\n";
 	std::cout << "2:\tRead UVW and trace particles\n> ";
 	cin >> input;
 	if (input < 2){
@@ -53,6 +54,10 @@ int main(int argc, char *argv[])
 			const NetCDF::Info::Variable& variable = info.GetVariableByName(varname);
 			for (int i = 0; i < variable.Dimensions.size(); ++i) {
 				std::cout << varname << " dimension " << i << ": " << variable.Dimensions[i].GetName() << std::endl;
+			}
+			for (int i = 0; i < variable.Attributes.size(); ++i) {
+				std::cout << varname << " attribute " << i << ": " << variable.Attributes[i].GetName() << std::endl;
+				std::cout << varname << " attribute " << i << ": " << variable.Attributes[i].GetValue() << std::endl;
 			}
 			std::cout << "X dimension is "; std::cin >> input;
 			dimname_0 = variable.Dimensions[input].GetName();
@@ -134,6 +139,22 @@ int main(int argc, char *argv[])
 				vecField->SetVertexDataAt(gridCoord, v);
 			}
 
+			//rescale U and V to rlon/rlat per second
+			cout << "Rescaling U and V...\n";
+			for (int64_t i = 0; i < vecField_size; ++i)
+			{
+				Vec3i gridCoord = vecField->GetGridCoord(i);
+				Vec3d coord = vecField->GetCoordAt(gridCoord);
+				Vec3f v = vecField->GetVertexDataAt(gridCoord);
+				double lon, lat;
+				RlatRlonToLatLon(coord[1], coord[0], lat, lon);
+				double dlon, dlat;
+				degreeLengths(lat, dlat, dlon);
+				v[1] /= dlon;
+				v[1] /= dlat;
+				vecField->SetVertexDataAt(gridCoord, v);
+			}
+
 			// W
 			delete field;
 			varname = "W"; dimname_1 = "rlat"; dimname_2 = "level1";
@@ -177,6 +198,7 @@ int main(int argc, char *argv[])
 				};
 				imageData->SetSpacing(spacing);
 				imageData->SetNumberOfScalarComponents(3, imageData->GetInformation());
+
 				std::cout << "Filling image data..." << std::endl;
 				// fill image data
 				vtkSmartPointer<vtkFloatArray> floatArray = vtkSmartPointer<vtkFloatArray>::New();
@@ -193,6 +215,9 @@ int main(int argc, char *argv[])
 					if (linearIndex % tuple_checkpoint == 0) { std::cout << linearIndex << " of " << numTuples << std::endl; }
 				}
 				imageData->GetPointData()->AddArray(floatArray);
+
+				double origin[3] = { vecField->GetDomain().GetMin()[0], vecField->GetDomain().GetMin()[1], vecField->GetDomain().GetMin()[2] };
+				imageData->SetOrigin(origin);
 
 				delete vecField;
 				std::cout << "Writing to file..." << std::endl;
@@ -240,6 +265,8 @@ int main(int argc, char *argv[])
 			if (linearIndex % tuple_checkpoint == 0) { std::cout << linearIndex << " of " << numTuples << std::endl; }
 		}
 		imageData->GetPointData()->AddArray(floatArray);
+		double origin[3] = { field->GetDomain().GetMin()[0], field->GetDomain().GetMin()[1], field->GetDomain().GetMin()[2] };
+		imageData->SetOrigin(origin);
 
 		std::cout << "Writing to file..." << std::endl;
 		// write to file
@@ -265,6 +292,9 @@ int main(int argc, char *argv[])
 		int* dims = imageData->GetDimensions();
 		cout << "Dimensions: " << dims[0] << " x " << dims[1] << " x " << dims[2] << endl;
 		double* bounds = imageData->GetBounds();
+
+		double* origin = imageData->GetOrigin();
+		cout << "Origin: " << origin[0] << " x " << origin[1] << " x " << origin[2] << endl;
 
 		Vec3i res(dims[0], dims[1], dims[2]);
 		Vec3d bb_min(bounds[0], bounds[2], bounds[3]);
