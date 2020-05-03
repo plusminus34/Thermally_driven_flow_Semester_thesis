@@ -3,13 +3,12 @@
 #include <iostream>
 #include <vtkImageData.h>
 #include <vtkSmartPointer.h>
-#include <vtkPointData.h>
-#include <vtkFloatArray.h>
 #include <vtkXMLImageDataWriter.h>
-#include <vtkXMLImageDataReader.h>
+#include <vtkFloatArray.h>
 
 #include "core/CoordinateTransform.hpp"
 #include "core/ParticleTracer.hpp"
+#include "core/UVWReader.hpp"
 
 // ---------------------------------------
 // Entry point
@@ -281,43 +280,13 @@ int main(int argc, char *argv[])
 		delete field;
 	}
 	else {
-		//Read UVW and convert into RegVectorfield
-		vtkNew<vtkXMLImageDataReader> imageReader;
-		std::string filename = "UVW.vti";
-		cout << "Reading file " << filename << endl;
-		imageReader->SetFileName(filename.c_str());
-		imageReader->Update();
-		vtkSmartPointer<vtkImageData> imageData = imageReader->GetOutput();
-		cout << "Got imageData\n";
-		int* dims = imageData->GetDimensions();
-		cout << "Dimensions: " << dims[0] << " x " << dims[1] << " x " << dims[2] << endl;
-		double* bounds = imageData->GetBounds();
-
-		double* origin = imageData->GetOrigin();
-		cout << "Origin: " << origin[0] << " x " << origin[1] << " x " << origin[2] << endl;
-
-		Vec3i res(dims[0], dims[1], dims[2]);
-		Vec3d bb_min(bounds[0], bounds[2], bounds[3]);
-		Vec3d bb_max(bounds[1], bounds[3], bounds[5]);
-		RegVectorField3f field(res, BoundingBox3d(bb_min, bb_max));
-
-		vtkSmartPointer<vtkPointData> pointData = imageData->GetPointData();
-		vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray("W");// apparently it's still called W ... TODO change that
-
-		int nPts = imageData->GetNumberOfPoints();
-		assert(dataArray->GetNumberOfTuples() == nPts);
-		cout << "Filling field ...\n";
-		for (int i = 0; i < nPts; ++i) {
-			double* pt = dataArray->GetTuple3(i);
-			//cout << "Pt " << i << ": " << pt[0] << "\t" << pt[1] << "\t" << pt[2] << endl;
-			Vec3i coord = field.GetGridCoord(i);
-			field.SetVertexDataAt(coord, Vec3f(pt[0], pt[1], pt[2]));
-			if (i % (nPts / 10) == 0) {
-				cout << "  " << i << " of " << nPts << endl;
-			}
+		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
+		field->GetDomain();
+		double bounds[6];
+		for (int i = 0; i < 3; ++i) {
+			bounds[2 * i] = field->GetDomain().GetMin()[i];
+			bounds[2 * i + 1] = field->GetDomain().GetMax()[i];
 		}
-		//TODO imageData will no longer be needed
-
 		cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
 		double tracing_bounds[6];
 		double spacing;
@@ -361,7 +330,7 @@ int main(int argc, char *argv[])
 					paths[path].push_back(position);
 					for (int l = 0; l < nSteps; ++l) {
 						Vec3d pos_d(position[0], position[1], position[2]);
-						position = tracer.traceParticle(field, pos_d, dt);
+						position = tracer.traceParticle(*field, pos_d, dt);
 						paths[path].push_back(position);
 					}
 				}
@@ -371,6 +340,7 @@ int main(int argc, char *argv[])
 		//TODO
 		cout << "THE END\n";
 		cout << "Trajectories are discarded\n";
+		delete field;
 	}
 	return 0;
 }
