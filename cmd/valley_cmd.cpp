@@ -300,7 +300,10 @@ int main(int argc, char *argv[])
 			for (int i = 0; i < 6; ++i) {
 				cin >> tracing_bounds[i];
 				if (i % 2 == 0) tracing_bounds[i] = std::max(tracing_bounds[i], bounds[i]);
-				else tracing_bounds[i] = std::min(tracing_bounds[i], bounds[i]);
+				else {
+					tracing_bounds[i] = std::min(tracing_bounds[i], bounds[i]);
+					if (tracing_bounds[i - 1] > tracing_bounds[i]) swap(tracing_bounds[i - 1], tracing_bounds[i]);
+				}
 			}
 			cout << "Input spacing between individual starting points> ";
 			cin >> spacing;
@@ -321,17 +324,60 @@ int main(int argc, char *argv[])
 
 		std::vector<std::vector<Vec3f>> paths(nPaths);
 
-		ParticleTracer<Vec3f, 3> tracer;
-		for (int i = 0; i < paths_dim[0];++i) {
+		for (int i = 0; i < paths_dim[0]; ++i) {
 			for (int j = 0; j < paths_dim[1]; ++j) {
 				for (int k = 0; k < paths_dim[2]; ++k) {
 					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
-					Vec3f position = Vec3f(tracing_bounds[0] + i*spacing, tracing_bounds[2] + j * spacing, tracing_bounds[3] + k * spacing);
+					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing, tracing_bounds[2] + j * spacing, tracing_bounds[3] + k * spacing);
 					paths[path].push_back(position);
-					for (int l = 0; l < nSteps; ++l) {
+				}
+			}
+		}
+		ParticleTracer<Vec3f, 3> tracer;
+
+		/* TODO ringbuffer
+		double file_t0 = 0;
+		double file_dt = 1;
+		double file_t = file_t0;
+
+		string file_t_to_string(double t);//TODO
+
+		string filename_front = "UVW_";
+		string filename_back = ".vti";
+		string filename_middle = file_t_to_string(file_t);
+		RegVectorField3f* ringbuffer[3];
+		ringbuffer[0] =  UVWFromVTIFile(filename_front + filename_middle + filename_back);
+		filename_middle = file_t_to_string(file_t+file_dt);
+		ringbuffer[1] =  UVWFromVTIFile(filename_front + filename_middle + filename_back);
+		filename_middle = file_t_to_string(file_t + 2*file_dt);
+		ringbuffer[2] = UVWFromVTIFile(filename_front + filename_middle + filename_back);
+		int ring_i = 0;
+		*/
+		for (double t = t0; t < t1; t += dt) {
+			/* TODO ringbuffer
+			if (t > file_t + file_dt) {
+				delete ringbuffer[ring_i];
+				file_t += file_dt;
+				filename_middle = file_t_to_string(file_t + 2 * file_dt);
+				ringbuffer[ring_i] = UVWFromVTIFile(filename_front + filename_middle + filename_back);
+				ring_i = (ring_i + 1) % 3;
+			}
+			int ring_next = (ring_i + 1) % 3;
+			RegVectorField3f* field0 = ringbuffer[ring_i];
+			RegVectorField3f* field1 = ringbuffer[ring_next];
+			*/
+			for (int i = 0; i < paths_dim[0]; ++i) {
+				for (int j = 0; j < paths_dim[1]; ++j) {
+					for (int k = 0; k < paths_dim[2]; ++k) {
+						int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
+						Vec3f position = paths[path][paths[path].size() - 1];
 						Vec3d pos_d(position[0], position[1], position[2]);
+						if (!field->GetDomain().Contains(pos_d)) continue;
 						position = tracer.traceParticle(*field, pos_d, dt);
 						paths[path].push_back(position);
+						/* TODO ringbuffer
+						position = tracer.traceParticle(*field0, field_t, *field1, field_t + field_dt, pos_d, t, dt);
+						*/
 					}
 				}
 			}
@@ -341,6 +387,7 @@ int main(int argc, char *argv[])
 		cout << "THE END\n";
 		cout << "Trajectories are discarded\n";
 		delete field;
+	//	for(int i=0;i<3;++i)delete ringbuffer[i];
 	}
 	return 0;
 }
