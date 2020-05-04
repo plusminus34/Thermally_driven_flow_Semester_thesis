@@ -88,7 +88,7 @@ void SceneWidget::CreateTestScene()
 	const int sampled_field_resolution = 30;
 	const double t0 = 0.0;
 	const double t1 = 2*PI*10;
-	const double dt = 0.01;
+	const double dt = 0.001;
 
 	const double bb_size = 7.0;
 
@@ -183,7 +183,8 @@ void SceneWidget::CreateTestScene()
 		RegVectorField3f field(res, BoundingBox3d(bb_min, bb_max));
 
 		vtkSmartPointer<vtkPointData> pointData = imageData->GetPointData();
-		vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray("W");// apparently it's still called W ... TODO change that
+		//vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray("U");// apparently it's still called W or U ... TODO change that
+		vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray(0);
 
 		int nPts = imageData->GetNumberOfPoints();
 		assert(dataArray->GetNumberOfTuples() == nPts);
