@@ -87,8 +87,8 @@ void SceneWidget::CreateTestScene()
 
 	const int sampled_field_resolution = 30;
 	const double t0 = 0.0;
-	const double t1 = 2*PI*10;
-	const double dt = 0.001;
+	const double t1 = 1.0;
+	const double dt = 0.02;
 
 	const double bb_size = 7.0;
 
@@ -222,8 +222,6 @@ void SceneWidget::CreateTestScene()
 			Vec3f eyo = field.Sample(Vec3d(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[3] + bounds[2]), 0.5*(bounds[4] + bounds[5])));
 			cout << "sampled " << eyo[0] << " " << eyo[1] << " " << eyo[2] << endl;
 		}
-
-		cout << "THE END\n";
 	
 
 	vtkNew<vtkNamedColors> colors;

@@ -38,6 +38,11 @@ endif()
 
 ######################################
 #netCDF paths
+if(EXISTS "C:/Users/Linus/Documents/Semester_thesis/netCDF4.7.4/include/netcdf.h")
+set(NETCDF_LIBRARIES "C:/Users/Linus/Documents/Semester_thesis/netCDF4.7.4/lib/netcdf.lib")
+set(NETCDF_INCLUDES "C:/Users/Linus/Documents/Semester_thesis/netCDF4.7.4/include/")
+endif()
+#
 if(EXISTS "C:/Program Files/netCDF 4.6.2/include/netcdf.h")
 set(NETCDF_LIBRARIES "C:/Program Files/netCDF 4.6.2/lib/netcdf.lib")
 set(NETCDF_INCLUDES "C:/Program Files/netCDF 4.6.2/include/")
@@ -67,6 +72,7 @@ if(EXISTS "E:/Dev/netCDF/include/netcdf.h")
 set(NETCDF_LIBRARIES E:/Dev/netCDF/lib/netcdf.lib)
 set(NETCDF_INCLUDES E:/Dev/netCDF/include/)
 endif()
+#
 
 if(EXISTS "/usr/include/netcdf.h")
 set(NETCDF_LIBRARIES "/usr/lib/x86_64-linux-gnu//libnetcdf.so")

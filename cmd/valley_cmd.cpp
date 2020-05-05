@@ -44,28 +44,34 @@ int main(int argc, char *argv[])
 		if (!NetCDF::ReadInfo(path, info)) { return -1; }
 
 		if (custom) {
-			for (int i = 0; i < info.NumVariables; ++i) {
-				std::cout << "Variable " << i << ": " << info.Variables[i].GetName() << std::endl;
-			}
-			int input = 0;
-			std::cout << "Selected variable is "; std::cin >> input;
-			varname = info.Variables[input].GetName();
-			const NetCDF::Info::Variable& variable = info.GetVariableByName(varname);
-			for (int i = 0; i < variable.Dimensions.size(); ++i) {
-				std::cout << varname << " dimension " << i << ": " << variable.Dimensions[i].GetName() << std::endl;
-			}
-			for (int i = 0; i < variable.Attributes.size(); ++i) {
-				std::cout << varname << " attribute " << i << ": " << variable.Attributes[i].GetName() << std::endl;
-				std::cout << varname << " attribute " << i << ": " << variable.Attributes[i].GetValue() << std::endl;
-			}
-			std::cout << "X dimension is "; std::cin >> input;
-			dimname_0 = variable.Dimensions[input].GetName();
-			std::cout << "Y dimension is "; std::cin >> input;
-			dimname_1 = variable.Dimensions[input].GetName();
-			std::cout << "Z dimension is "; std::cin >> input;
-			dimname_2 = variable.Dimensions[input].GetName();
-		}
+			int confirm = 0;
+			while (confirm == 0) {
+				for (int i = 0; i < info.NumDimensions; ++i) {
+					std::cout << "dimension " << i << ": " << info.Dimensions[i].GetName() << std::endl;
+				}
+				for (int i = 0; i < info.NumVariables; ++i) {
+					std::cout << "Variable " << i << ": " << info.Variables[i].GetName() << std::endl;
+				}
+				int input = 0;
+				std::cout << "Selected variable is "; std::cin >> input;
+				varname = info.Variables[input].GetName();
+				const NetCDF::Info::Variable& variable = info.GetVariableByName(varname);
+				for (int i = 0; i < variable.Dimensions.size(); ++i) {
+					std::cout << varname << " dimension " << i << ": " << variable.Dimensions[i].GetName() << std::endl;
+				}
+				for (int i = 0; i < variable.Attributes.size(); ++i) {
+					std::cout << varname << " attribute " << i << ": " << variable.Attributes[i].GetName() << " : " << variable.Attributes[i].GetValue() << std::endl;
+				}
+				std::cout << "X dimension is "; std::cin >> input;
+				dimname_0 = variable.Dimensions[input].GetName();
+				std::cout << "Y dimension is "; std::cin >> input;
+				dimname_1 = variable.Dimensions[input].GetName();
+				std::cout << "Z dimension is "; std::cin >> input;
+				dimname_2 = variable.Dimensions[input].GetName();
 
+				cout << "Confirm? (0/1)> "; cin >> confirm;
+			}
+		}
 		std::cout << "Importing field..." << std::endl;
 		// import field
 		RegScalarField3f* field = NetCDF::ImportScalarField3f(path, varname, dimname_0, dimname_1, dimname_2);
@@ -142,8 +148,6 @@ int main(int argc, char *argv[])
 				delete vecField;
 			}
 		}
-		int input = 0;
-		std::cout << "continue? "; cin >> input; if (!input) return 0;
 		std::cout << "Allocating image data object..." << std::endl;
 		// allocate image data object
 		vtkSmartPointer<vtkImageData> imageData = vtkSmartPointer<vtkImageData>::New();
@@ -188,7 +192,7 @@ int main(int argc, char *argv[])
 	}
 	else {
 		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
-		field->GetDomain();
+		cout << "Read UVW\n";
 		double bounds[6];
 		for (int i = 0; i < 3; ++i) {
 			bounds[2 * i] = field->GetDomain().GetMin()[i];

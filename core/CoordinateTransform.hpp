@@ -80,3 +80,10 @@ void degreeLengths(double lat, double& lat_length, double& lon_length) {
 	lon_length = 111412.84 * cos(lat*TO_RAD) - 93.5 * cos(3 * lat*TO_RAD) + 0.118*cos(5 * lat*TO_RAD);
 }
 
+void degreeLengthsSimple(double lat, double& lat_length, double& lon_length) {
+	lat_length = TO_RAD * 6367449 * cos(lat*TO_RAD);
+	lon_length = lat_length;
+	//u'=u / (deltay*cos(y0*pi / 180.))
+	//v' = v/deltay
+	cout << "Length: " << lat_length << endl;
+}
