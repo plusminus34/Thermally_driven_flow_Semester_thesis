@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include "RegularGrid.hpp"
+#include "NetCDF.hpp"
+#include "CoordinateTransform.hpp"
 #include <vtkImageData.h>
 #include <vtkXMLImageDataReader.h>
 #include <vtkNew.h>

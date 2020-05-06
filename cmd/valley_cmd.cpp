@@ -9,6 +9,7 @@
 #include "core/CoordinateTransform.hpp"
 #include "core/ParticleTracer.hpp"
 #include "core/UVWReader.hpp"
+//#include "core/ImportantPart.hpp"
 
 // ---------------------------------------
 // Entry point
@@ -24,13 +25,16 @@ int main(int argc, char *argv[])
 	std::cout << "Choose option:\n";
 	std::cout << "0:\tRead and interpolate UVW field\n";
 	std::cout << "1:\tRead custom field\n";
-	std::cout << "2:\tRead UVW and trace particles\n> ";
+	std::cout << "2:\tRead UVW and trace particles\n";
+	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
 		for (double deg = 0; deg < 88; deg += 5) {
 			double lon, lat;
 			degreeLengthsSimple(deg, lat, lon);
 			cout << "Degree length at latitude " << deg << ":\tlat " << lat << "\tlon " << lon << endl;
+			//ImportantPart mine;
+			//mine.doStuff();
 		}
 		return 0;
 	}
@@ -254,37 +258,7 @@ int main(int argc, char *argv[])
 		}
 		ParticleTracer<Vec3f, 3> tracer;
 
-		/* TODO ringbuffer
-		double file_t0 = 0;
-		double file_dt = 1;
-		double file_t = file_t0;
-
-		string file_t_to_string(double t);//TODO
-
-		string filename_front = "UVW_";
-		string filename_back = ".vti";
-		string filename_middle = file_t_to_string(file_t);
-		RegVectorField3f* ringbuffer[3];
-		ringbuffer[0] =  UVWFromVTIFile(filename_front + filename_middle + filename_back);
-		filename_middle = file_t_to_string(file_t+file_dt);
-		ringbuffer[1] =  UVWFromVTIFile(filename_front + filename_middle + filename_back);
-		filename_middle = file_t_to_string(file_t + 2*file_dt);
-		ringbuffer[2] = UVWFromVTIFile(filename_front + filename_middle + filename_back);
-		int ring_i = 0;
-		*/
 		for (double t = t0; t < t1; t += dt) {
-			/* TODO ringbuffer
-			if (t > file_t + file_dt) {
-				delete ringbuffer[ring_i];
-				file_t += file_dt;
-				filename_middle = file_t_to_string(file_t + 2 * file_dt);
-				ringbuffer[ring_i] = UVWFromVTIFile(filename_front + filename_middle + filename_back);
-				ring_i = (ring_i + 1) % 3;
-			}
-			int ring_next = (ring_i + 1) % 3;
-			RegVectorField3f* field0 = ringbuffer[ring_i];
-			RegVectorField3f* field1 = ringbuffer[ring_next];
-			*/
 			for (int i = 0; i < paths_dim[0]; ++i) {
 				for (int j = 0; j < paths_dim[1]; ++j) {
 					for (int k = 0; k < paths_dim[2]; ++k) {
@@ -294,9 +268,6 @@ int main(int argc, char *argv[])
 						if (!field->GetDomain().Contains(pos_d)) continue;
 						position = tracer.traceParticle(*field, pos_d, dt);
 						paths[path].push_back(position);
-						/* TODO ringbuffer
-						position = tracer.traceParticle(*field0, field_t, *field1, field_t + field_dt, pos_d, t, dt);
-						*/
 					}
 				}
 			}
@@ -306,7 +277,6 @@ int main(int argc, char *argv[])
 		cout << "THE END\n";
 		cout << "Trajectories are discarded\n";
 		delete field;
-	//	for(int i=0;i<3;++i)delete ringbuffer[i];
 	}
 	return 0;
 }
