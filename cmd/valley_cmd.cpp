@@ -26,6 +26,14 @@ int main(int argc, char *argv[])
 	std::cout << "1:\tRead custom field\n";
 	std::cout << "2:\tRead UVW and trace particles\n> ";
 	cin >> input;
+	if (input == 3) {
+		for (double deg = 0; deg < 88; deg += 5) {
+			double lon, lat;
+			degreeLengthsSimple(deg, lat, lon);
+			cout << "Degree length at latitude " << deg << ":\tlat " << lat << "\tlon " << lon << endl;
+		}
+		return 0;
+	}
 	if (input < 2){
 		std::string varname;
 		std::string dimname_0, dimname_1, dimname_2;

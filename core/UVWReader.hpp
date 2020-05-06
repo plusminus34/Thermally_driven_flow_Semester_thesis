@@ -98,7 +98,6 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 		RlatRlonToLatLon(coord[1], coord[0], lat, lon);
 		double dlon, dlat;
 		degreeLengthsSimple(lat, dlat, dlon);
-		// dlon dlat als m/GRAD
 		v[0] /= dlon;
 		v[1] /= dlat;
 		uvw->SetVertexDataAt(gridCoord, v);
@@ -123,6 +122,9 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 		uvw->SetVertexDataAt(gridCoord, v);
 	}
 	delete field;
+
+	//TODO rescale W
+	//needs constants file: Variable HHL (rlon,rlat,level1) is height in meters
 
 	return uvw;
 }
