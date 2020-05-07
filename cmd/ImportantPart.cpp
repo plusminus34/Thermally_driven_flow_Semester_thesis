@@ -1,5 +1,5 @@
 #pragma once
-/*
+
 #include <iostream>
 #include "ImportantPart.hpp"
 
@@ -32,39 +32,42 @@ void ImportantPart::doStuff() {
 	std::vector<std::string> files;//list of relevant files
 	std::string constantsfile;//name of the file containing constants (mainly HHL)
 
-	ParticleTracer<Vec3f, 3> tracer;
+	//ParticleTracer<Vec3f, 3> tracer;
 	
+	std::cout << "Ringbuffer ftw\n";
 	// setup ringbuffer
 	std::string filename = basefilename + "00000000.nc";//placeholder
-	ringbuffer[0] = UVWFromNCFile(filename);//from the first file timestep
-	ringbuffer[1] = UVWFromNCFile(filename);//actually from the next file timestep
-	ringbuffer[2] = UVWFromNCFile(filename);//actually from the file timestep after that
+
+	//ringbuffer[0] = UVWFromNCFile(filename);//from the first file timestep
+	//ringbuffer[1] = UVWFromNCFile(filename);//actually from the next file timestep
+	//ringbuffer[2] = UVWFromNCFile(filename);//actually from the file timestep after that
 
 	// store a list of trajectories that haven't left the bounding box
 	std::vector<std::vector<Vec3f>*> active_paths(trajectories.size());
 	for (int i = 0; i < trajectories.size(); ++i) active_paths[i] = &trajectories[i];
 
 	//--------------------- the important part
+	std::cout << "THE IMPORTANT PART\n";
 	// compute trajectories
 	for (double t = t0; t < t1; t += dt) {
-		if ( t reaches ring_next) {
-			delete ringbuffer[ring_i];
-			ring_next = ring_third;
-			ring_i = ring_next;
-			ring_third = (ring_next + 1) % 3;
-		}
+		//if ( t reaches ring_next) {
+		//	delete ringbuffer[ring_i];
+		//	ring_next = ring_third;
+		//	ring_i = ring_next;
+		//	ring_third = (ring_next + 1) % 3;
+		//}
 		//loop over active paths
 		for (int i = 0; i < active_paths.size(); ++i) {
 			//compute next position
 			std::vector<Vec3f>* path = active_paths[i];
-			Vec3f* pos_fp = &(*path)[path->size() - 1];//maybe not use so many pointers?
-			Vec3d pos_d((*pos_fp)[0], (*pos_fp)[1], (*pos_fp)[2]);
+			//Vec3f* pos_fp = &(*path)[path->size() - 1];//maybe not use so many pointers?
+			//Vec3d pos_d((*pos_fp)[0], (*pos_fp)[1], (*pos_fp)[2]);
 			//TODO path->push_back(trace(???)); 
 			//make inactive if it leaves the bounds of the field
 		}
 	}
 	//--------------------- the end
-	for (int i = 0; i < 3; ++i) delete ringbuffer[i];
+	std::cout << "fin\n";
+	//for (int i = 0; i < 3; ++i) delete ringbuffer[i];
 	//return paths somehow
 }
-*/

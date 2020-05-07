@@ -1,10 +1,10 @@
 #pragma once
-/*
+
 #include <string>
 #include <vector>
-//#include "RegularGrid.hpp"
-//#include "UVWReader.hpp"
-//#include "ParticleTracer.hpp"
+//#include "core/Math.hpp"
+#include "core/ParticleTracer.hpp"
+//#include "core/UVWReader.hpp"
 
 class ImportantPart
 {

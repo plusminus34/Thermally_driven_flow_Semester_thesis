@@ -87,8 +87,8 @@ void SceneWidget::CreateTestScene()
 
 	const int sampled_field_resolution = 30;
 	const double t0 = 0.0;
-	const double t1 = 1.0;
-	const double dt = 0.02;
+	const double t1 = 100000.0;
+	const double dt = 5;
 
 	const double bb_size = 7.0;
 
@@ -206,10 +206,12 @@ void SceneWidget::CreateTestScene()
 				int path = i * 10 + j;
 				pathColors[path] = Vec3f(0.7f + i*0.01f, 0.9f + j*0.01f, 0.3f);
 				Vec3f position = midpoint + Vec3f(i, j, 0)*eee;
+				float z0 = position[2];
 				paths[path][0] = Vec3f(position[0], position[1], position[2]);
 				for (int k = 0; k < nSteps; ++k) {
 					Vec3d positiond(position[0], position[1], position[2]);
 					position = tracer3.traceParticle(field, positiond, dt);
+					position[2] = z0;
 					paths[path][k + 1] = Vec3f(position[0], position[1], position[2]);
 					if (position[0] < bounds[0] || position[0] > bounds[1] ||
 						position[1] < bounds[2] || position[1] > bounds[3] ||

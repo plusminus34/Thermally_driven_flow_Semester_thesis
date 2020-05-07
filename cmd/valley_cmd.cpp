@@ -5,11 +5,12 @@
 #include <vtkSmartPointer.h>
 #include <vtkXMLImageDataWriter.h>
 #include <vtkFloatArray.h>
+#include <vtkPointData.h>
 
-#include "core/CoordinateTransform.hpp"
-#include "core/ParticleTracer.hpp"
-#include "core/UVWReader.hpp"
-//#include "core/ImportantPart.hpp"
+//#include "core/CoordinateTransform.hpp"
+//#include "core/ParticleTracer.hpp"
+//#include "core/UVWReader.hpp"
+#include "ImportantPart.hpp"
 
 // ---------------------------------------
 // Entry point
@@ -29,13 +30,13 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
-		for (double deg = 0; deg < 88; deg += 5) {
+		for (double deg = 0; deg < 88; deg += 4) {
 			double lon, lat;
-			degreeLengthsSimple(deg, lat, lon);
+			CoordinateTransform::degreeLengthsSimple(deg, lat, lon);
 			cout << "Degree length at latitude " << deg << ":\tlat " << lat << "\tlon " << lon << endl;
-			//ImportantPart mine;
-			//mine.doStuff();
 		}
+		ImportantPart mine;
+		mine.doStuff();
 		return 0;
 	}
 	if (input < 2){
