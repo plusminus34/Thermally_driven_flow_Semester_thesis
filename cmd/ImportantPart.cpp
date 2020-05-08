@@ -37,39 +37,54 @@ string ImportantPart::IntToDDHHMMSS(int seconds) const {
 
 }
 
+void ImportantPart::setTimestep(double timestep) {
+	dt = timestep;
+	nSteps = ceil((end_t - start_t) / dt);
+}
+
+void ImportantPart::SetNumberOfTimesteps(int num_steps) {
+	nSteps = num_steps;
+	dt = (end_t - start_t) / nSteps;
+}
+
 void ImportantPart::doStuff() {
 	std::cout << "I swear by God that the ImportantPart is doing stuff!\n";
-	//--------------------- beginning
-	// get/set important variables
-	double t0=0, t1=1;//beginning and end time
-	double dt=0.1; int nSteps;//timestep size and number
+	//--------------------- Initialization
+	// name of the file containing constants (mainly HHL)
+	string constantsfile = basefilename + IntToDDHHMMSS(file_t0) + 'c' + fileending;
 
-	int ring_i = 0;//index of the current earliest element in the ringbuffer
-	int ring_next = 1;
-	int ring_third = 2;
+	// Create list of relevant files
+	vector<string> files;// the list
+	vector<int> file_t;// the time of each file
+	int file_i_0 = floor((start_t - file_t0) / file_dt);
+	int file_i_1 = ceil((end_t - file_t0) / file_dt);
+	for (int i = file_i_0; i < file_i_1; ++i) {
+		int t = file_t0 + i * file_dt;
+		files.push_back(basefilename + IntToDDHHMMSS(t) + fileending);
+		file_t.push_back(t);
+	}
 
-	std::string filepath;//path to where files lie
-	std::vector<std::string> files;//list of relevant files
-	std::string constantsfile;//name of the file containing constants (mainly HHL)
-
-	//ParticleTracer<Vec3f, 3> tracer;
+	// Yep, that's a particle tracer
+	ParticleTracer<Vec3f, 3> tracer;
 	
-	std::cout << "Ringbuffer ftw\n";
 	// setup ringbuffer
-	std::string filename = basefilename + "00000000.nc";//placeholder
-
-	//ringbuffer[0] = UVWFromNCFile(filename);//from the first file timestep
-	//ringbuffer[1] = UVWFromNCFile(filename);//actually from the next file timestep
-	//ringbuffer[2] = UVWFromNCFile(filename);//actually from the file timestep after that
+	if (files.size() < 3) {
+		cout << "Sorry, at least 3 files are currently required.\n";
+		return;
+	}
+	int file_i = 0;
+	ringbuffer[0] = UVWFromNCFile(files[0]);
+	ringbuffer[1] = UVWFromNCFile(files[1]);
+	ringbuffer[2] = UVWFromNCFile(files[2]);
 
 	// store a list of trajectories that haven't left the bounding box
 	std::vector<std::vector<Vec3f>*> active_paths(trajectories.size());
 	for (int i = 0; i < trajectories.size(); ++i) active_paths[i] = &trajectories[i];
 
-	//--------------------- the important part
+	//--------------------- Where particles are traced and paths filled
 	std::cout << "THE IMPORTANT PART\n";
 	// compute trajectories
-	for (double t = t0; t < t1; t += dt) {
+	for (double t = start_t; t < end_t; t += dt) {
 		//if ( t reaches ring_next) {
 		//	delete ringbuffer[ring_i];
 		//	ring_next = ring_third;
@@ -87,7 +102,6 @@ void ImportantPart::doStuff() {
 		}
 	}
 	//--------------------- the end
-	std::cout << "fin\n";
-	//for (int i = 0; i < 3; ++i) delete ringbuffer[i];
-	//return paths somehow
+	for (int i = 0; i < 3; ++i) delete ringbuffer[i];
+	std::cout << "Paths are finished\n";
 }
