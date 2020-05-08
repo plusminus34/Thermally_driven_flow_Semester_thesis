@@ -7,14 +7,34 @@ ImportantPart::ImportantPart(): ringbuffer(3), trajectories(1) {
 	basefilename = "lfff";//followed by DDHHMMSS, possibly 'c', and .nc
 }
 
-int ImportantPart::DDHHMMSSToDouble(std::string input) const
+int ImportantPart::DDHHMMSSToInt(std::string input) const
 {
 	assert(input.size() >= 8);
-	int days = std::stoi(input.substr(0, 2));
-	int hours = std::stoi(input.substr(2, 2));
-	int minutes = std::stoi(input.substr(4, 2));
-	int seconds = std::stoi(input.substr(6, 2));
+	int days = stoi(input.substr(0, 2));
+	int hours = stoi(input.substr(2, 2));
+	int minutes = stoi(input.substr(4, 2));
+	int seconds = stoi(input.substr(6, 2));
 	return days * 86400 + hours * 3600 + minutes * 60 + seconds;
+}
+
+string ImportantPart::IntToDDHHMMSS(int seconds) const {
+	int days = seconds / 86400;
+	seconds -= 86400 * days;
+	int hours = seconds / 3600;
+	seconds -= 3600 * hours;
+	int minutes = seconds / 60;
+	seconds -= 60 * minutes;
+	if (days > 99) {
+		days = 99;
+		cout << "Warning: DDHHMMSS with more than 99 days\n";
+	}
+	string res = "";
+	if (days < 10) res += "0"; res += to_string(days);
+	if (hours < 10) res += "0"; res += to_string(hours);
+	if (minutes < 10) res += "0"; res += to_string(minutes);
+	if (seconds < 10) res += "0"; res += to_string(seconds);
+	return res;
+
 }
 
 void ImportantPart::doStuff() {

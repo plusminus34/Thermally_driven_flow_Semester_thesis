@@ -7,9 +7,6 @@
 #include <vtkFloatArray.h>
 #include <vtkPointData.h>
 
-//#include "core/CoordinateTransform.hpp"
-//#include "core/ParticleTracer.hpp"
-//#include "core/UVWReader.hpp"
 #include "ImportantPart.hpp"
 
 // ---------------------------------------
@@ -36,6 +33,10 @@ int main(int argc, char *argv[])
 			cout << "Degree length at latitude " << deg << ":\tlat " << lat << "\tlon " << lon << endl;
 		}
 		ImportantPart mine;
+		for (int sec = 1; sec < 1000000; sec *= 2) {
+			string ddhhmmss = mine.IntToDDHHMMSS(sec);
+			cout << sec << " seconds are " << ddhhmmss << " and back " << mine.DDHHMMSSToInt(ddhhmmss) << endl;
+		}
 		mine.doStuff();
 		return 0;
 	}

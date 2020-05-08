@@ -2,7 +2,6 @@
 
 #include <string>
 #include <vector>
-//#include "RegularGrid.hpp"
 #include "UVWReader.hpp"
 
 template<typename TValueType, size_t TDimensions>
