@@ -17,6 +17,7 @@ public:
 		TValueType k4 = field.Sample(start + k3 * dt);
 		return start + (k1 + k2 * 2 + k3 * 2 + k4) * (dt / 6.0);
 	}
+
 	//between field0 at t0 and field1 at t1
 	TValueType traceParticle(const field_t& field0, double t0, const field_t& field1, double t1, const TValueType& start, double start_t, float dt) {
 		const double iT = 1.0/ (t1 - t0);
@@ -26,7 +27,38 @@ public:
 		TValueType k1 = field0.Sample(start) * (1 - t_a) + field1.Sample(start) * t_a;
 		TValueType k2 = field0.Sample(start + k1 * dt*0.5) * (1 - t_b) + field1.Sample(start + k1 * dt*0.5) * t_b;
 		TValueType k3 = field0.Sample(start + k2 * dt*0.5) * (1 - t_b) + field1.Sample(start + k2 * dt*0.5) * t_b;
-		TValueType k4 = field0.Sample(start) * (1 - t_c) + field1.Sample(start) * t_c;
+		TValueType k4 = field0.Sample(start + k3 * dt) * (1 - t_c) + field1.Sample(start + k3 * dt) * t_c;
+		return start + (k1 + k2 * 2 + k3 * 2 + k4) * (dt / 6.0);
+	}
+
+	// field0 at field_t0, field2 at field_t2, field1 at their midpoint; start between the first two fields, end possibly between the second and third field
+	TValueType traceParticle(const field_t& field0, const field_t& field1, const field_t& field2, double field_t0, double field_t2, const TValueType& start, double start_t, float dt) {
+		assert(start_t >= field_t0 && start_t <= 0.5*(field_t0 + field_t2));
+		const double field_t1 = 0.5*(field_t0 + field_t2);
+		const double iT = 2.0 / (field_t2 - field_t0);
+		double alpha = (start_t - field_t0) * iT;
+		TValueType k1 = field0.Sample(start) * (1 - alpha) + field1.Sample(start) * alpha;
+		TValueType k2, k3, k4;
+		const double th = start_t + 0.5*dt;
+		if (th < field_t1) {
+			alpha = (th - field_t0) * iT;
+			k2 = field0.Sample(start + k1 * dt*0.5) * (1 - alpha) + field1.Sample(start + k1 * dt*0.5) * alpha;
+			k3 = field0.Sample(start + k2 * dt*0.5) * (1 - alpha) + field1.Sample(start + k2 * dt*0.5) * alpha;
+		}
+		else {
+			alpha = (th - field_t1) * iT;
+			k2 = field1.Sample(start + k1 * dt*0.5) * (1 - alpha) + field2.Sample(start + k1 * dt*0.5) * alpha;
+			k3 = field1.Sample(start + k2 * dt*0.5) * (1 - alpha) + field2.Sample(start + k2 * dt*0.5) * alpha;
+		}
+		const double t1 = start_t + dt;
+		if (t1 < field_t1) {
+			alpha = (t1 - field_t0) * iT;
+			k4 = field0.Sample(start + k3 * dt) * (1 - alpha) + field1.Sample(start + k3 * dt) * alpha;
+		}
+		else {
+			alpha = (t1 - field_t1) * iT;
+			k4 = field1.Sample(start + k3 * dt) * (1 - alpha) + field2.Sample(start + k3 * dt) * alpha;
+		}
 		return start + (k1 + k2 * 2 + k3 * 2 + k4) * (dt / 6.0);
 	}
 };
