@@ -27,16 +27,25 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
-		for (double deg = 0; deg < 88; deg += 4) {
-			double lon, lat;
-			CoordinateTransform::degreeLengthsSimple(deg, lat, lon);
-			cout << "Degree length at latitude " << deg << ":\tlat " << lat << "\tlon " << lon << endl;
-		}
 		ImportantPart mine;
+		cout << "argv1 " << argv[1] << endl;
+		string basefile(argv[1]);
+		cout << "basefile " << basefile << endl;
+		basefile = basefile.substr(0, basefile.size() - 11);
+		cout << "basefile_ " << basefile << endl;
+		mine.setBaseFileName(basefile);
 		for (int sec = 1; sec < 1000000; sec *= 2) {
 			string ddhhmmss = mine.IntToDDHHMMSS(sec);
 			cout << sec << " seconds are " << ddhhmmss << " and back " << mine.DDHHMMSSToInt(ddhhmmss) << endl;
 		}
+		int nPaths = 5;
+		mine.trajectories.resize(nPaths);
+		for (int i = 0; i < nPaths; ++i) {
+			mine.trajectories[i].resize(1);
+			mine.trajectories[i][0] = Vec3f(i*0.6f, i*0.5f, i);
+		}
+		mine.setTimeBoundaries(3600, 3601);
+		mine.setTimestep(0.1);
 		mine.doStuff();
 		return 0;
 	}
@@ -106,7 +115,8 @@ int main(int argc, char *argv[])
 		*/
 
 		if (!custom) {
-			RegVectorField3f* vecField = UVWFromNCFile(path);
+			vector<float> placeholder;
+			RegVectorField3f* vecField = UVWFromNCFile(path, placeholder);
 			int64_t vecField_size = (int64_t)vecField->GetResolution()[0] * vecField->GetResolution()[1] * vecField->GetResolution()[2];
 
 			int input = 0;

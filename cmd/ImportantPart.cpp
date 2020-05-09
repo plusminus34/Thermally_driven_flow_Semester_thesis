@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include "ImportantPart.hpp"
+#include "core/NetCDF.hpp"
 
 ImportantPart::ImportantPart(): ringbuffer(3), trajectories(1) {
 	basefilename = "lfff";//followed by DDHHMMSS, possibly 'c', and .nc
@@ -58,7 +59,7 @@ void ImportantPart::doStuff() {
 	vector<int> file_t;// the time of each file
 	int file_i_0 = floor((start_t - file_t0) / file_dt);
 	int file_i_1 = ceil((end_t - file_t0) / file_dt);
-	for (int i = file_i_0; i < file_i_1; ++i) {
+	for (int i = file_i_0; i <= file_i_1; ++i) {
 		int t = file_t0 + i * file_dt;
 		files.push_back(basefilename + IntToDDHHMMSS(t) + fileending);
 		file_t.push_back(t);
@@ -66,42 +67,68 @@ void ImportantPart::doStuff() {
 
 	// Yep, that's a particle tracer
 	ParticleTracer<Vec3f, 3> tracer;
+
+	// Helping: store a 1d-array mapping level1 to height (TODO is this correct?)
+	cout << "Will import HHL from " << constantsfile << endl;
+	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
+	vector<float> lv_to_h(hhl->GetResolution()[2]);
+	for (int i = 0; i < lv_to_h.size(); ++i) {
+		Vec3i gridCoord(0, 0, i);
+		lv_to_h[i] = hhl->GetVertexDataAt(gridCoord);
+	}
+	delete hhl;
 	
 	// setup ringbuffer
-	if (files.size() < 3) {
-		cout << "Sorry, at least 3 files are currently required.\n";
-		return;
-	}
 	int file_i = 0;
-	ringbuffer[0] = UVWFromNCFile(files[0]);
-	ringbuffer[1] = UVWFromNCFile(files[1]);
-	ringbuffer[2] = UVWFromNCFile(files[2]);
+	ringbuffer[0] = UVWFromNCFile(files[0], lv_to_h);
+	ringbuffer[1] = ringbuffer[0];// UVWFromNCFile(files[1], lv_to_h);TODO use
+	ringbuffer[2] = ringbuffer[0];// UVWFromNCFile(files[2], lv_to_h);TODO use
+	RegVectorField3f& field0 = *ringbuffer[0];
+	RegVectorField3f& field1 = *ringbuffer[1];
+	RegVectorField3f& field2 = *ringbuffer[2];
 
 	// store a list of trajectories that haven't left the bounding box
 	std::vector<std::vector<Vec3f>*> active_paths(trajectories.size());
 	for (int i = 0; i < trajectories.size(); ++i) active_paths[i] = &trajectories[i];
 
+	// domain is relevant for checking
+	const BoundingBox3d bb = field0.GetDomain();
+
 	//--------------------- Where particles are traced and paths filled
-	std::cout << "THE IMPORTANT PART\n";
 	// compute trajectories
 	for (double t = start_t; t < end_t; t += dt) {
-		//if ( t reaches ring_next) {
-		//	delete ringbuffer[ring_i];
-		//	ring_next = ring_third;
-		//	ring_i = ring_next;
-		//	ring_third = (ring_next + 1) % 3;
-		//}
-		//loop over active paths
+		cout << "time " << t << endl;
+		/* TODO use this
+		if (t >= file_t[file_i + 1]) {
+			delete ringbuffer[file_i % 3];
+			field0 = field1;
+			field1 = field2;
+			ringbuffer[file_i % 3] = UVWFromNCFile(files[file_i + 3], lv_to_h);
+			field2 = *ringbuffer[file_i % 3];
+			++file_i;
+		}
+		*/
+		// loop over active paths
 		for (int i = 0; i < active_paths.size(); ++i) {
+			cout << "path " << i << endl;
 			//compute next position
 			std::vector<Vec3f>* path = active_paths[i];
-			//Vec3f* pos_fp = &(*path)[path->size() - 1];//maybe not use so many pointers?
-			//Vec3d pos_d((*pos_fp)[0], (*pos_fp)[1], (*pos_fp)[2]);
-			//TODO path->push_back(trace(???)); 
-			//make inactive if it leaves the bounds of the field
+			Vec3f* pos_fp = &(*path)[path->size() - 1];//maybe not use so many pointers?
+			Vec3f pos_f = tracer.traceParticle(field0, field1, field2, file_t[file_i], file_t[file_i + 2], *pos_fp, t, dt);
+			path->push_back(pos_f);
+			
+			//TODO changing active_paths while iterating over it is not nice
+			// remove from active paths pos_f is outside the domain
+			Vec3d pos_d(pos_f[0], pos_f[1], pos_f[2]);
+			if (!bb.Contains(pos_d)) {
+				swap(active_paths[i], active_paths[active_paths.size() - 1]);
+				--i;
+				active_paths.pop_back();
+			}
 		}
 	}
 	//--------------------- the end
-	for (int i = 0; i < 3; ++i) delete ringbuffer[i];
+	delete ringbuffer[0];//TODO remove
+	//for (int i = 0; i < 3; ++i) delete ringbuffer[i];TODO back
 	std::cout << "Paths are finished\n";
 }

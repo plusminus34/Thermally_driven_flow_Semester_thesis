@@ -9,4 +9,4 @@ using namespace std;
 
 RegVectorField3f* UVWFromVTIFile(string filename = "UVW.vti");
 
-RegVectorField3f* UVWFromNCFile(string filename);
+RegVectorField3f* UVWFromNCFile(string filename, const vector<float>& lv_to_h);

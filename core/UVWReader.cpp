@@ -40,7 +40,7 @@ RegVectorField3f* UVWFromVTIFile(string filename) {
 	return uvw;
 }
 
-RegVectorField3f* UVWFromNCFile(string filename) {
+RegVectorField3f* UVWFromNCFile(string filename, const vector<float>& lv1_to_h) {
 	// Constants: variable names and unit vectors
 	std::string varname[3];
 	std::string dimname[3][3];
@@ -51,6 +51,7 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 
 	// import U for the start
 	RegScalarField3f* field = NetCDF::ImportScalarField3f(filename, varname[0], dimname[0][0], dimname[0][1], dimname[0][2]);
+	if (field == NULL) return nullptr;
 
 	// init vector field based on dimensions of U
 	RegVectorField3f* uvw = new RegVectorField3f(field->GetResolution() - uX - uY, field->GetDomain());
@@ -70,6 +71,10 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 
 	// V
 	field = NetCDF::ImportScalarField3f(filename, varname[1], dimname[1][0], dimname[1][1], dimname[1][2]);
+	if (field == NULL){
+		delete uvw;
+		return nullptr;
+	}
 	Vec3f minV(field->GetDomain().GetMin());
 	Vec3f maxV(field->GetDomain().GetMax());
 	for (int i = 0; i < 3; ++i) {
@@ -101,6 +106,10 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 	}
 	// W
 	field = NetCDF::ImportScalarField3f(filename, varname[2], dimname[2][0], dimname[2][1], dimname[2][2]);
+	if (field == NULL) {
+		delete uvw;
+		return nullptr;
+	}
 	// also here: finish defining the domain (TODO do it in a nicer way)
 	Vec3f minW(field->GetDomain().GetMin());
 	Vec3f maxW(field->GetDomain().GetMax());
@@ -116,12 +125,13 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 		Vec3i gridCoord = uvw->GetGridCoord(i);
 		float value = (field->GetVertexDataAt(gridCoord + uX + uY) + field->GetVertexDataAt(gridCoord + uX + uY + uZ)) * 0.5f;
 		Vec3f v = uvw->GetVertexDataAt(gridCoord); v[2] = value;
+		// rescale W using lv1_to_h
+		if (lv1_to_h.size() == field->GetResolution()[2]) {
+			v[2] /= abs((lv1_to_h[gridCoord[2] + 1] - lv1_to_h[gridCoord[2]]));
+		}
 		uvw->SetVertexDataAt(gridCoord, v);
 	}
 	delete field;
-
-	//TODO rescale W
-	//needs constants file: Variable HHL (rlon,rlat,level1) is height in meters
 
 	return uvw;
 }
