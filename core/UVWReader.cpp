@@ -41,6 +41,7 @@ RegVectorField3f* UVWFromVTIFile(string filename) {
 }
 
 RegVectorField3f* UVWFromNCFile(string filename, const vector<float>& lv1_to_h) {
+	cout << "Importing UVW from " << filename << endl;
 	// Constants: variable names and unit vectors
 	std::string varname[3];
 	std::string dimname[3][3];

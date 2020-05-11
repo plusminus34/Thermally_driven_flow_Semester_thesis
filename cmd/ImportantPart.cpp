@@ -43,13 +43,12 @@ void ImportantPart::setTimestep(double timestep) {
 	nSteps = ceil((end_t - start_t) / dt);
 }
 
-void ImportantPart::SetNumberOfTimesteps(int num_steps) {
+void ImportantPart::setNumberOfTimesteps(int num_steps) {
 	nSteps = num_steps;
 	dt = (end_t - start_t) / nSteps;
 }
 
 void ImportantPart::doStuff() {
-	std::cout << "I swear by God that the ImportantPart is doing stuff!\n";
 	//--------------------- Initialization
 	// name of the file containing constants (mainly HHL)
 	string constantsfile = basefilename + IntToDDHHMMSS(file_t0) + 'c' + fileending;
@@ -81,8 +80,8 @@ void ImportantPart::doStuff() {
 	// setup ringbuffer
 	int file_i = 0;
 	ringbuffer[0] = UVWFromNCFile(files[0], lv_to_h);
-	ringbuffer[1] = ringbuffer[0];// UVWFromNCFile(files[1], lv_to_h);TODO use
-	ringbuffer[2] = ringbuffer[0];// UVWFromNCFile(files[2], lv_to_h);TODO use
+	ringbuffer[1] = UVWFromNCFile(files[1], lv_to_h);
+	ringbuffer[2] = UVWFromNCFile(files[2], lv_to_h);
 	RegVectorField3f& field0 = *ringbuffer[0];
 	RegVectorField3f& field1 = *ringbuffer[1];
 	RegVectorField3f& field2 = *ringbuffer[2];
@@ -98,7 +97,6 @@ void ImportantPart::doStuff() {
 	// compute trajectories
 	for (double t = start_t; t < end_t; t += dt) {
 		cout << "time " << t << endl;
-		/* TODO use this
 		if (t >= file_t[file_i + 1]) {
 			delete ringbuffer[file_i % 3];
 			field0 = field1;
@@ -106,17 +104,24 @@ void ImportantPart::doStuff() {
 			ringbuffer[file_i % 3] = UVWFromNCFile(files[file_i + 3], lv_to_h);
 			field2 = *ringbuffer[file_i % 3];
 			++file_i;
+			cout << "switched\n";
 		}
-		*/
+		for (int i = 0; i < trajectories.size(); ++i) {
+			cout << "  tra " << i << " : with file_i" << file_i << " of " << file_t.size() << endl;
+			Vec3f pos_f = trajectories[i][trajectories[i].size() - 1];//TODO this
+			cout << "  pos_f " << pos_f[0] << " " << pos_f[1] << " " << pos_f[2];
+			pos_f = tracer.traceParticle(field0, field1, field2, file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
+			trajectories[i].push_back(pos_f);
+		}
 		// loop over active paths
+		/*
 		for (int i = 0; i < active_paths.size(); ++i) {
-			cout << "path " << i << endl;
 			//compute next position
-			std::vector<Vec3f>* path = active_paths[i];
-			Vec3f* pos_fp = &(*path)[path->size() - 1];//maybe not use so many pointers?
-			Vec3f pos_f = tracer.traceParticle(field0, field1, field2, file_t[file_i], file_t[file_i + 2], *pos_fp, t, dt);
+			vector<Vec3f>*  path = active_paths[i];
+			Vec3f pos_f = (*path)[path->size() - 1];
+			pos_f = tracer.traceParticle(field0, field1, field2, file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
 			path->push_back(pos_f);
-			
+
 			//TODO changing active_paths while iterating over it is not nice
 			// remove from active paths pos_f is outside the domain
 			Vec3d pos_d(pos_f[0], pos_f[1], pos_f[2]);
@@ -126,9 +131,9 @@ void ImportantPart::doStuff() {
 				active_paths.pop_back();
 			}
 		}
+		*/
 	}
 	//--------------------- the end
-	delete ringbuffer[0];//TODO remove
-	//for (int i = 0; i < 3; ++i) delete ringbuffer[i];TODO back
+	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr)delete ringbuffer[i];
 	std::cout << "Paths are finished\n";
 }

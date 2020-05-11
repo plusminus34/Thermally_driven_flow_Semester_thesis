@@ -19,7 +19,7 @@ public:
 	void setTimeBoundaries(double t0, double t1) { start_t = t0; end_t = t1; }
 	// Define step size
 	void setTimestep(double timestep);
-	void SetNumberOfTimesteps(int num_steps);
+	void setNumberOfTimesteps(int num_steps);
 	// Information about which files to use
 	void setBaseFileName(string name) { basefilename = name; }
 	void setFileOriginTime(int t0) { file_t0 = t0; }
