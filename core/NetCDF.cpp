@@ -135,69 +135,51 @@ bool NetCDF::ReadInfo(const std::string& path, Info& info)
 
 RegScalarField2f* NetCDF::ImportScalarField2f(const std::string& path, const std::string& varname, const std::string& dimXname, const std::string& dimYname)
 {
-	printf("1 format!");
 	// get the info object
 	NetCDF::Info info;
-	printf("2 format!");
 	if (!ReadInfo(path, info)) return NULL;
-	printf("3 format!");
 
 	// read the resolution from the info object
-	printf("4 format!");
 	const NetCDF::Info::Variable& variable = info.GetVariableByName(varname);
-	printf("5 format!");
 	size_t resX = variable.GetDimensionByName(dimXname).GetLength();
-	printf("6 format!");
 	size_t resY = variable.GetDimensionByName(dimYname).GetLength();
 
-	printf("7 format!");
 	// get meta information on the variable
 	int varid = variable.GetID();
-	printf("8 format!");
 	Info::EType vartype = variable.GetType();
-	printf("9 format!");
 	if (vartype != Info::EType::FLOAT && vartype != Info::EType::DOUBLE) {
 		printf("Unsupported format!");
 		return NULL;
 	}
-	printf("10 format!");
 
 	// open the file
 	int status, ncid;
-	printf("11 format!");
 	status = nc_open(path.c_str(), NC_NOWRITE, &ncid);
-	printf("12 format!");
 	if (status != NC_NOERR) { return NULL; }
 
-	printf("13 format!");
 	// read the bounds if not provided
 	BoundingBox2d domain;
 	std::vector<float> dimX, dimY;
 	ImportFloatArray(path, dimXname, dimX);
 	ImportFloatArray(path, dimYname, dimY);
-	printf("yoo format!");
 	domain.ExpandByPoint(Vec2d({ dimX.front(), dimY.front() }));
 	domain.ExpandByPoint(Vec2d({ dimX.back(), dimY.back() }));
 
 	// allocate the scalar field
 	RegScalarField2f* field = new RegScalarField2f(Vec2i({ (int)resX, (int)resY }), domain);
 
-	printf("oy format!");
 	if (vartype == Info::EType::FLOAT)
 	{
-		printf("c1 format!");
 		float* rawdata = field->GetData().data();
 		status = nc_get_var_float(ncid, varid, rawdata);
 		if (status != NC_NOERR) { delete field; nc_close(ncid); return NULL; }
 	}
 	else {
-		printf("c2 format!");
 		printf("Incompatible format.\n");
 		delete field;
 		nc_close(ncid); 
 		return NULL;
 	}
-	printf("meh format!");
 	nc_close(ncid);
 	return field;
 }
@@ -448,24 +430,28 @@ bool NetCDF::ReadPaths(const std::string& path, std::vector<std::vector<Vec3f>>&
 	NetCDF::Info info;
 	if (!ReadInfo(path, info)) return false;
 
-	if (!info.HasVariable("me_X")) {
-		printf("Nomex\n");
-		return false;
-	}
-	printf("found me_x\n");
-	int nPaths = info.GetVariableByName("me_X").GetDimensionByName("pathID").GetLength();
-	int pathLength = info.GetVariableByName("me_X").GetDimensionByName("pathT").GetLength();
+	int nPaths = info.GetVariableByName("X").GetDimensionByName("pathID").GetLength();
+	int pathLength = info.GetVariableByName("X").GetDimensionByName("pathT").GetLength();
+
 	paths.resize(nPaths);
-	for (int i = 0; i < nPaths; ++i)paths[i].resize(pathLength);
-	int varid = info.GetVariableByName("me_X").GetID();
+	for (int i = 0; i < nPaths; ++i) paths[i].resize(pathLength);
+	int x_id = info.GetVariableByName("X").GetID();
+	int y_id = info.GetVariableByName("Y").GetID();
+	int z_id = info.GetVariableByName("Z").GetID();
 
 	int ncid;
 	if (nc_open(path.c_str(), NC_NOWRITE, &ncid)) return false;
-	std::vector<float> data(nPaths*pathLength);
-	if (nc_get_var_float(ncid, varid, &data[0])) return false;
+	std::vector<float> data_x(nPaths*pathLength);
+	std::vector<float> data_y(nPaths*pathLength);
+	std::vector<float> data_z(nPaths*pathLength);
+	if (nc_get_var_float(ncid, x_id, &data_x[0])) return false;
+	if (nc_get_var_float(ncid, y_id, &data_y[0])) return false;
+	if (nc_get_var_float(ncid, z_id, &data_z[0])) return false;
 	for (int i = 0; i < nPaths; ++i) {
 		for (int j = 0; j < pathLength; ++j) {
-			paths[i][j][0] = data[i*pathLength + j];
+			paths[i][j][0] = data_x[i*pathLength + j];
+			paths[i][j][1] = data_y[i*pathLength + j];
+			paths[i][j][2] = data_z[i*pathLength + j];
 		}
 	}
 
@@ -474,72 +460,60 @@ bool NetCDF::ReadPaths(const std::string& path, std::vector<std::vector<Vec3f>>&
 	return true;
 }
 bool NetCDF::WritePaths(const std::string& path, const std::vector<std::vector<Vec3f>>& paths) {
-	printf("Yaay");
 	size_t nPaths = paths.size();
 	size_t pathLength = paths[0].size();
 	for (int i = 1; i < nPaths; ++i) if (paths[i].size() != pathLength) return false;
-	std::vector<float> pathsData(nPaths*pathLength);
+	const size_t nPoints = nPaths * pathLength;
+	std::vector<float> pathsData(nPoints * 3);
 	for (int i = 0; i < nPaths; ++i) {
 		for (int j = 0; j < pathLength; ++j) {
 			pathsData[i*pathLength + j] = paths[i][j][0];
+			pathsData[i*pathLength + j + nPoints] = paths[i][j][1];
+			pathsData[i*pathLength + j + 2 * nPoints] = paths[i][j][2];
 		}
 	}
-	printf("Yaa2322y");
 
 	int status, ncid;
-	printf("opening\n");
-	if (status = nc_create(path.c_str(), NC_NOCLOBBER, &ncid)) { return false; }
-
-	printf("opened\n");
+	if (status = nc_create(path.c_str(), NC_CLOBBER, &ncid)) { return false; }
 
 	int pathID_id, pathT_id;
 	char pathIDName[] = "Path ID"; char pathTName[] = "Path T";
 	char long_name[] = "long_name", standard_name[] = "standard_name", units[] = "units";
 	char axis[] = "axis";
-	char varname[] = "me_X";
-	printf("Yaay333");
+	char xname[] = "X", yname[] = "Y", zname[] = "Z";
 
 	//important
 	//define variables and dimensions and attributes
 
-	printf("defdim1\n");
 	if (status = nc_def_dim(ncid, "pathID", nPaths, &pathID_id)) return false;
-
-	printf("defdim2\n");
 	if (status = nc_def_dim(ncid, "pathT", pathLength, &pathT_id)) return false;
 
-	printf("defvar\n");
 	int fieldIDs[] = { pathID_id,pathT_id };
-	int varID;
+	int xID, yID, zID;
 	int pathID_var, pathT_var;
-	if (nc_def_var(ncid, varname, NC_FLOAT, 2, fieldIDs, &varID)) return false;
 	if (nc_def_var(ncid, pathIDName, NC_FLOAT, 1, &pathID_id, &pathID_var)) return false;
 	if (nc_def_var(ncid, pathTName, NC_FLOAT, 1, &pathT_id, &pathT_var)) return false;
+	if (nc_def_var(ncid, xname, NC_FLOAT, 2, fieldIDs, &xID)) return false;
+	if (nc_def_var(ncid, yname, NC_FLOAT, 2, fieldIDs, &yID)) return false;
+	if (nc_def_var(ncid, zname, NC_FLOAT, 2, fieldIDs, &zID)) return false;
 
-	printf("putatts\n");
-	if (status = nc_put_att_text(ncid, varID, standard_name, strlen(varname), varname)) return false;
-	printf("yo\n");
+	if (status = nc_put_att_text(ncid, xID, standard_name, strlen(xname), xname)) return false;
+	if (status = nc_put_att_text(ncid, yID, standard_name, strlen(yname), yname)) return false;
+	if (status = nc_put_att_text(ncid, zID, standard_name, strlen(zname), zname)) return false;
 
 	if (nc_enddef(ncid))return false;
 
-	printf("Yaay444");
-
 	//fill in data
-	/*
-	float meh[] = { 0.1f, 2.f };
-	if (nc_put_var_float(ncid, pathID_var, meh));
-	if (nc_put_var_float(ncid, pathT_var, meh));
-	*/
 	size_t startp[] = { 0, 0 };
 	size_t countp[] = { nPaths, pathLength };
 	for (int i = 0; i < nPaths; ++i)
 		for (int j = 0; j < pathLength; ++j) {
-			if (nc_put_vara_float(ncid, varID, startp, countp, &pathsData[0])) return false;
+			if (nc_put_vara_float(ncid, xID, startp, countp, &pathsData[0])) return false;
+			if (nc_put_vara_float(ncid, yID, startp, countp, &pathsData[nPoints])) return false;
+			if (nc_put_vara_float(ncid, zID, startp, countp, &pathsData[2 * nPoints])) return false;
 		}
-	//if (nc_put_vara_float(ncid, fieldVarIDs[i], start, count_i, &gridDataList[i]->GetData()[0])) return false;
 
 	if (status = nc_close(ncid)) return false;
-	printf("Yaay555");
 
 	return true;
 }

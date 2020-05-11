@@ -33,23 +33,23 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < n; ++i) {
 			yup[i].resize(m);
 			for (int j = 0; j < m; ++j) {
-				yup[i][j] = Vec3f(i*j*0.2f*j, j, i*j*m*n);
+				yup[i][j] = Vec3f(i*j*0.2f*j, j, i*j*m*n+3);
 			}
 		}
-		if (NetCDF::WritePaths("somewhere.nc", yup)) cout <<"Hurray\n";
-		else cout << "miiischt\n";
+		if (NetCDF::WritePaths("somewhere.nc", yup)) cout <<"Write paths success\n";
+		else cout << "Write paths failure\n";
 
 		yup.clear();
 		if (NetCDF::ReadPaths("somewhere.nc", yup)) {
-			cout << "ridit\n";
+			cout << "Read paths success\n";
 			for (int i = 0; i < yup.size(); ++i) {
 				for (int j = 0; j < yup[i].size(); ++j) {
-					cout << "yupij" << i << j << ": " << yup[i][j][0] << endl;
+					cout << "yupij" << i << j << ": " << yup[i][j][0] << " " << yup[i][j][1] << " " << yup[i][j][2] << endl;
 				}
 			}
 
 		}
-		else cout << "miiischt\n";
+		else cout << "Read paths failure\n";
 
 		return 0;
 	}
