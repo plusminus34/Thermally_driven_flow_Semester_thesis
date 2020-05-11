@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
 
 		imp.setTimeBoundaries(t0, t1);
 		imp.setTimestep(dt);
-		imp.doStuff();
+		// 2 0 1 2 3 4 5 0.1 11 3333 44 1
 
 		imp.trajectories.resize(nPaths);
 		for (int i = 0; i < paths_dim[0]; ++i) {
@@ -278,7 +278,8 @@ int main(int argc, char *argv[])
 				for (int k = 0; k < paths_dim[2]; ++k) {
 					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
 					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing, tracing_bounds[2] + j * spacing, tracing_bounds[3] + k * spacing);
-					imp.trajectories[path].push_back(position);
+					imp.trajectories[path].resize(1);
+					imp.trajectories[path][0] = position;
 				}
 			}
 		}
@@ -289,7 +290,7 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < imp.trajectories[0].size(); ++i) {
 			cout << "path[0][" << i << "]: " << imp.trajectories[0][i][0] << " " << imp.trajectories[0][i][1] << " " << imp.trajectories[0][i][2] << endl;
 		}
-		cout << "Trajectories are discarded\n";
+		NetCDF::WritePaths("imp_paths.nc", imp.trajectories);
 		delete field;
 	}
 	return 0;

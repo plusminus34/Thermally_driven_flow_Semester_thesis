@@ -98,18 +98,25 @@ void ImportantPart::doStuff() {
 	for (double t = start_t; t < end_t; t += dt) {
 		cout << "time " << t << endl;
 		if (t >= file_t[file_i + 1]) {
+			cout << "delete\n";
 			delete ringbuffer[file_i % 3];
+			cout << "switch 0=1\n";
 			field0 = field1;
+			cout << "switch 1=2\n";
 			field1 = field2;
+			cout << "read 2 = ringbuffernew [" << (file_i % 3) << "] file " << files[file_i + 3] << endl;
 			ringbuffer[file_i % 3] = UVWFromNCFile(files[file_i + 3], lv_to_h);
+			cout << "set 2\n";
 			field2 = *ringbuffer[file_i % 3];
+			cout << "++\n";
 			++file_i;
 			cout << "switched\n";
 		}
 		for (int i = 0; i < trajectories.size(); ++i) {
-			cout << "  tra " << i << " : with file_i" << file_i << " of " << file_t.size() << endl;
-			Vec3f pos_f = trajectories[i][trajectories[i].size() - 1];//TODO this
-			cout << "  pos_f " << pos_f[0] << " " << pos_f[1] << " " << pos_f[2];
+			cout << "  trajectories: " << trajectories.size() << " am at " << i << endl;
+			//cout << "  traj[i]: " << trajectories[i].size() << " am at " << trajectories[i].size() - 1 << endl;
+			Vec3f pos_f = trajectories[i][trajectories[i].size() - 1];
+			//cout << "  pos_f " << pos_f[0] << " " << pos_f[1] << " " << pos_f[2];
 			pos_f = tracer.traceParticle(field0, field1, field2, file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
 			trajectories[i].push_back(pos_f);
 		}
