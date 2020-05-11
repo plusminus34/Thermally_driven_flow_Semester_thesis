@@ -121,4 +121,8 @@ public:
 	static bool ImportFloat(const std::string& path, const std::string& varname, float& output);
 	// imports a float array
 	static bool ImportFloatArray(const std::string& path, const std::string& varname, std::vector<float>& output);
+
+	// read/write trajectories
+	static bool WritePaths(const std::string& path, const std::vector<std::vector<Vec3f>>& paths);
+	static bool ReadPaths(const std::string& path, std::vector<std::vector<Vec3f>>& paths);
 };

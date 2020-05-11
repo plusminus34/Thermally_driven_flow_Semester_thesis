@@ -27,26 +27,30 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
-		ImportantPart mine;
-		cout << "argv1 " << argv[1] << endl;
-		string basefile(argv[1]);
-		cout << "basefile " << basefile << endl;
-		basefile = basefile.substr(0, basefile.size() - 11);
-		cout << "basefile_ " << basefile << endl;
-		mine.setBaseFileName(basefile);
-		for (int sec = 1; sec < 1000000; sec *= 2) {
-			string ddhhmmss = mine.IntToDDHHMMSS(sec);
-			cout << sec << " seconds are " << ddhhmmss << " and back " << mine.DDHHMMSSToInt(ddhhmmss) << endl;
+		vector<vector<Vec3f>> yup;
+		int n = 3, m = 5;
+		yup.resize(n);
+		for (int i = 0; i < n; ++i) {
+			yup[i].resize(m);
+			for (int j = 0; j < m; ++j) {
+				yup[i][j] = Vec3f(i*j*0.2f*j, j, i*j*m*n);
+			}
 		}
-		int nPaths = 5;
-		mine.trajectories.resize(nPaths);
-		for (int i = 0; i < nPaths; ++i) {
-			mine.trajectories[i].resize(1);
-			mine.trajectories[i][0] = Vec3f(i*0.6f, i*0.5f, i);
+		if (NetCDF::WritePaths("somewhere.nc", yup)) cout <<"Hurray\n";
+		else cout << "miiischt\n";
+
+		yup.clear();
+		if (NetCDF::ReadPaths("somewhere.nc", yup)) {
+			cout << "ridit\n";
+			for (int i = 0; i < yup.size(); ++i) {
+				for (int j = 0; j < yup[i].size(); ++j) {
+					cout << "yupij" << i << j << ": " << yup[i][j][0] << endl;
+				}
+			}
+
 		}
-		mine.setTimeBoundaries(3600, 3601);
-		mine.setTimestep(0.1);
-		mine.doStuff();
+		else cout << "miiischt\n";
+
 		return 0;
 	}
 	if (input < 2){
@@ -214,7 +218,7 @@ int main(int argc, char *argv[])
 		// delete resources and return
 		delete field;
 	}
-	else {
+	else if (input == 2) {
 		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
 		cout << "Read UVW\n";
 		double bounds[6];
@@ -256,37 +260,35 @@ int main(int argc, char *argv[])
 			cout << "There will be up to "<<nSteps<<" steps per trajectory\n";
 			cout << "Confirm (0/1)> "; cin >> confirmed;
 		}
+		delete field;
 
-		std::vector<std::vector<Vec3f>> paths(nPaths);
+		ImportantPart imp;
 
+		string basefile(argv[1]);
+		basefile = basefile.substr(0, basefile.size() - 11);
+		imp.setBaseFileName(basefile);
+
+		imp.setTimeBoundaries(t0, t1);
+		imp.setTimestep(dt);
+		imp.doStuff();
+
+		imp.trajectories.resize(nPaths);
 		for (int i = 0; i < paths_dim[0]; ++i) {
 			for (int j = 0; j < paths_dim[1]; ++j) {
 				for (int k = 0; k < paths_dim[2]; ++k) {
 					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
 					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing, tracing_bounds[2] + j * spacing, tracing_bounds[3] + k * spacing);
-					paths[path].push_back(position);
+					imp.trajectories[path].push_back(position);
 				}
 			}
 		}
-		ParticleTracer<Vec3f, 3> tracer;
-
-		for (double t = t0; t < t1; t += dt) {
-			for (int i = 0; i < paths_dim[0]; ++i) {
-				for (int j = 0; j < paths_dim[1]; ++j) {
-					for (int k = 0; k < paths_dim[2]; ++k) {
-						int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
-						Vec3f position = paths[path][paths[path].size() - 1];
-						Vec3d pos_d(position[0], position[1], position[2]);
-						if (!field->GetDomain().Contains(pos_d)) continue;
-						position = tracer.traceParticle(*field, pos_d, dt);
-						paths[path].push_back(position);
-					}
-				}
-			}
-		}
+		imp.doStuff();
 
 		//TODO
 		cout << "THE END\n";
+		for (int i = 0; i < imp.trajectories[0].size(); ++i) {
+			cout << "path[0][" << i << "]: " << imp.trajectories[0][i][0] << " " << imp.trajectories[0][i][1] << " " << imp.trajectories[0][i][2] << endl;
+		}
 		cout << "Trajectories are discarded\n";
 		delete field;
 	}
