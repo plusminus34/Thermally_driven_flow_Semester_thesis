@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
 
 		imp.setTimeBoundaries(t0, t1);
 		imp.setTimestep(dt);
-		// 2 0 1 2 3 4 5 0.1 11 3333 44 1
+		// 2 0 1 2 3 4 5 0.1 11 1111 44 1
 
 		imp.trajectories.resize(nPaths);
 		for (int i = 0; i < paths_dim[0]; ++i) {
@@ -285,13 +285,7 @@ int main(int argc, char *argv[])
 		}
 		imp.doStuff();
 
-		//TODO
-		cout << "THE END\n";
-		for (int i = 0; i < imp.trajectories[0].size(); ++i) {
-			cout << "path[0][" << i << "]: " << imp.trajectories[0][i][0] << " " << imp.trajectories[0][i][1] << " " << imp.trajectories[0][i][2] << endl;
-		}
 		NetCDF::WritePaths("imp_paths.nc", imp.trajectories);
-		delete field;
 	}
 	return 0;
 }

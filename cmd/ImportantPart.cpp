@@ -82,42 +82,51 @@ void ImportantPart::doStuff() {
 	ringbuffer[0] = UVWFromNCFile(files[0], lv_to_h);
 	ringbuffer[1] = UVWFromNCFile(files[1], lv_to_h);
 	ringbuffer[2] = UVWFromNCFile(files[2], lv_to_h);
-	RegVectorField3f& field0 = *ringbuffer[0];
-	RegVectorField3f& field1 = *ringbuffer[1];
-	RegVectorField3f& field2 = *ringbuffer[2];
+	int ri0 = 0, ri1 = 1, ri2 = 2;
 
 	// store a list of trajectories that haven't left the bounding box
 	std::vector<std::vector<Vec3f>*> active_paths(trajectories.size());
 	for (int i = 0; i < trajectories.size(); ++i) active_paths[i] = &trajectories[i];
 
 	// domain is relevant for checking
-	const BoundingBox3d bb = field0.GetDomain();
+	const BoundingBox3d bb = ringbuffer[0]->GetDomain();
+	bool finalPart = false;
 
 	//--------------------- Where particles are traced and paths filled
 	// compute trajectories
 	for (double t = start_t; t < end_t; t += dt) {
 		cout << "time " << t << endl;
 		if (t >= file_t[file_i + 1]) {
-			cout << "delete\n";
+			cout << "delete ringbuffer "<< file_i % 3 <<" because t "<<t<<" >= "<< file_t[file_i + 1] <<"\n";
 			delete ringbuffer[file_i % 3];
 			cout << "switch 0=1\n";
-			field0 = field1;
+			ri0 = ri1;//TODO something
 			cout << "switch 1=2\n";
-			field1 = field2;
-			cout << "read 2 = ringbuffernew [" << (file_i % 3) << "] file " << files[file_i + 3] << endl;
-			ringbuffer[file_i % 3] = UVWFromNCFile(files[file_i + 3], lv_to_h);
-			cout << "set 2\n";
-			field2 = *ringbuffer[file_i % 3];
+			ri1 = ri2;
+			if (files.size() > file_i + 3) {
+				cout << "read 2 = ringbuffernew [" << (file_i % 3) << "] file " << files[file_i + 3] << endl;
+				ringbuffer[file_i % 3] = UVWFromNCFile(files[file_i + 3], lv_to_h);
+				cout << "set 2\n";
+			}
+			else {
+				cout << "set sorta-nullptr\n";
+				ringbuffer[file_i % 3] = new RegVectorField3f(Vec3i(1,1,1), bb);
+				finalPart = true;
+			}
+			ri2 = file_i % 3;
 			cout << "++\n";
 			++file_i;
 			cout << "switched\n";
 		}
 		for (int i = 0; i < trajectories.size(); ++i) {
-			cout << "  trajectories: " << trajectories.size() << " am at " << i << endl;
+			//cout << "  trajectories: " << trajectories.size() << " am at " << i << endl;
 			//cout << "  traj[i]: " << trajectories[i].size() << " am at " << trajectories[i].size() - 1 << endl;
 			Vec3f pos_f = trajectories[i][trajectories[i].size() - 1];
 			//cout << "  pos_f " << pos_f[0] << " " << pos_f[1] << " " << pos_f[2];
-			pos_f = tracer.traceParticle(field0, field1, field2, file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
+			if (!finalPart)
+				pos_f = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
+			else
+				pos_f = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], pos_f, t, dt);
 			trajectories[i].push_back(pos_f);
 		}
 		// loop over active paths
