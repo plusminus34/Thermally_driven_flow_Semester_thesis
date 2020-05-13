@@ -13,6 +13,7 @@
 #include <vector>
 #include "core/ParticleTracer.hpp"
 #include "core/ISampleField.hpp"
+#include "core/NetCDF.hpp"
 
 #include <vtkXMLImageDataReader.h>
 #include <vtkImageData.h>
@@ -121,11 +122,12 @@ void SceneWidget::CreateTestScene()
 
 	const int nSteps = ceil((t1 - t0) / dt);
 
+	/*
 	int nPaths = 100;//12;
 	std::vector<std::vector<Vec3f>> paths(nPaths);
 	std::vector<Vec3f> pathColors(nPaths);
 	for (int i = 0; i < nPaths; ++i) paths[i].resize(nSteps + 1);
-
+	*/
 	/*
 	for (int p = 0; p < 6;++p) {
 		int path = p;
@@ -162,21 +164,23 @@ void SceneWidget::CreateTestScene()
 		}
 	}*/
 	
-		//Read UVW and convert into RegVectorfield
-		vtkNew<vtkXMLImageDataReader> imageReader;
-		std::string filename = "../cmd/UVW.vti";
-		cout << "Reading file " << filename << endl;
-		imageReader->SetFileName(filename.c_str());
-		imageReader->Update();
-		vtkSmartPointer<vtkImageData> imageData = imageReader->GetOutput();
-		cout << "Got imageData\n";
-		int* dims = imageData->GetDimensions();
-		cout << "Dimensions: " << dims[0] << " x " << dims[1] << " x " << dims[2] << endl;
-		int num_components = imageData->GetNumberOfScalarComponents();
-		cout << "Number of scalar components: " << num_components << endl;
-		double* bounds = imageData->GetBounds();
-		cout << "Bounds: " << bounds[0] << " - " << bounds[1] << "\t" << bounds[2] << " x " << bounds[3] << "\t" << bounds[4] << " x " << bounds[5] << endl;
+	//Read UVW and convert into RegVectorfield
+	vtkNew<vtkXMLImageDataReader> imageReader;
+	std::string filename = "../cmd/UVW.vti";
+	cout << "Reading file " << filename << endl;
+	imageReader->SetFileName(filename.c_str());
+	imageReader->Update();
+	vtkSmartPointer<vtkImageData> imageData = imageReader->GetOutput();
+	cout << "Got imageData\n";
+	int* dims = imageData->GetDimensions();
+	cout << "Dimensions: " << dims[0] << " x " << dims[1] << " x " << dims[2] << endl;
+	int num_components = imageData->GetNumberOfScalarComponents();
+	cout << "Number of scalar components: " << num_components << endl;
+	double* bounds = imageData->GetBounds();
+	cout << "Bounds: " << bounds[0] << " - " << bounds[1] << "\t" << bounds[2] << " x " << bounds[3] << "\t" << bounds[4] << " x " << bounds[5] << endl;
+	Vec3f midpoint(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[2] + bounds[3]), 0.5*(bounds[4] + bounds[5]));
 
+		/*
 		Vec3i res(dims[0], dims[1], dims[2]);
 		Vec3d bb_min(bounds[0], bounds[2], bounds[3]);
 		Vec3d bb_max(bounds[1], bounds[3], bounds[5]);
@@ -199,7 +203,6 @@ void SceneWidget::CreateTestScene()
 			}
 		}
 
-		Vec3f midpoint(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[2] + bounds[3]), 0.5*(bounds[4] + bounds[5]));
 		Vec3f eee((bounds[1] - bounds[0]) / dims[0], (bounds[3] - bounds[2]) / dims[1], (bounds[5] - bounds[4]) / dims[2]);
 		for (int i = 0; i < 10; ++i) {
 			for (int j = 0; j < 10; ++j) {
@@ -224,7 +227,15 @@ void SceneWidget::CreateTestScene()
 			Vec3f eyo = field.Sample(Vec3d(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[3] + bounds[2]), 0.5*(bounds[4] + bounds[5])));
 			cout << "sampled " << eyo[0] << " " << eyo[1] << " " << eyo[2] << endl;
 		}
-	
+	*/
+
+	vector<vector<Vec3f>> paths;
+	NetCDF::ReadPaths("../cmd/imp_paths_first.nc", paths);
+	int nPaths = paths.size();
+	std::vector<Vec3f> pathColors(nPaths);
+	for (int i = 0; i < nPaths; ++i) {
+		pathColors[i] = Vec3f(1 - ((float)i / nPaths), 1, 1);
+	}
 
 	vtkNew<vtkNamedColors> colors;
 
