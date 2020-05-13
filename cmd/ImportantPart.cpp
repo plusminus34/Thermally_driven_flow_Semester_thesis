@@ -90,6 +90,8 @@ void ImportantPart::doStuff() {
 
 	// domain is relevant for checking
 	const BoundingBox3d bb = ringbuffer[0]->GetDomain();
+	BoundingBox<Vec3f> bb_f(Vec3f(bb.GetMin()[0], bb.GetMin()[1], bb.GetMin()[1]), Vec3f(bb.GetMax()[0], bb.GetMax()[1], bb.GetMax()[1]));
+	// and an extra variable to mark the final part where only 2 fields are used
 	bool finalPart = false;
 
 	//--------------------- Where particles are traced and paths filled
@@ -97,57 +99,29 @@ void ImportantPart::doStuff() {
 	for (double t = start_t; t < end_t; t += dt) {
 		cout << "time " << t << endl;
 		if (t >= file_t[file_i + 1]) {
-			cout << "delete ringbuffer "<< file_i % 3 <<" because t "<<t<<" >= "<< file_t[file_i + 1] <<"\n";
 			delete ringbuffer[file_i % 3];
-			cout << "switch 0=1\n";
-			ri0 = ri1;//TODO something
-			cout << "switch 1=2\n";
+			ri0 = ri1;
 			ri1 = ri2;
 			if (files.size() > file_i + 3) {
-				cout << "read 2 = ringbuffernew [" << (file_i % 3) << "] file " << files[file_i + 3] << endl;
 				ringbuffer[file_i % 3] = UVWFromNCFile(files[file_i + 3], lv_to_h);
-				cout << "set 2\n";
 			}
 			else {
-				cout << "set sorta-nullptr\n";
 				ringbuffer[file_i % 3] = new RegVectorField3f(Vec3i(1,1,1), bb);
 				finalPart = true;
 			}
 			ri2 = file_i % 3;
-			cout << "++\n";
 			++file_i;
-			cout << "switched\n";
 		}
 		for (int i = 0; i < trajectories.size(); ++i) {
-			//cout << "  trajectories: " << trajectories.size() << " am at " << i << endl;
-			//cout << "  traj[i]: " << trajectories[i].size() << " am at " << trajectories[i].size() - 1 << endl;
 			Vec3f pos_f = trajectories[i][trajectories[i].size() - 1];
-			//cout << "  pos_f " << pos_f[0] << " " << pos_f[1] << " " << pos_f[2];
-			if (!finalPart)
-				pos_f = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
-			else
-				pos_f = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], pos_f, t, dt);
+			if (bb_f.Contains(pos_f)) {
+				if (!finalPart)
+					pos_f = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
+				else
+					pos_f = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], pos_f, t, dt);
+			}
 			trajectories[i].push_back(pos_f);
 		}
-		// loop over active paths
-		/*
-		for (int i = 0; i < active_paths.size(); ++i) {
-			//compute next position
-			vector<Vec3f>*  path = active_paths[i];
-			Vec3f pos_f = (*path)[path->size() - 1];
-			pos_f = tracer.traceParticle(field0, field1, field2, file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
-			path->push_back(pos_f);
-
-			//TODO changing active_paths while iterating over it is not nice
-			// remove from active paths pos_f is outside the domain
-			Vec3d pos_d(pos_f[0], pos_f[1], pos_f[2]);
-			if (!bb.Contains(pos_d)) {
-				swap(active_paths[i], active_paths[active_paths.size() - 1]);
-				--i;
-				active_paths.pop_back();
-			}
-		}
-		*/
 	}
 	//--------------------- the end
 	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr)delete ringbuffer[i];
