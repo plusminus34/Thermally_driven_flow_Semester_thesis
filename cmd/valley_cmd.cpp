@@ -119,8 +119,7 @@ int main(int argc, char *argv[])
 		*/
 
 		if (!custom) {
-			vector<float> placeholder;
-			RegVectorField3f* vecField = UVWFromNCFile(path, placeholder);
+			RegVectorField3f* vecField = UVWFromNCFile(path);
 			int64_t vecField_size = (int64_t)vecField->GetResolution()[0] * vecField->GetResolution()[1] * vecField->GetResolution()[2];
 
 			int input = 0;

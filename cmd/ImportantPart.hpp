@@ -32,7 +32,6 @@ public:
 
 
 private:
-	vector<RegVectorField3f*> ringbuffer;
 	string basefilename;
 	string fileending = ".nc";
 	int file_t0 = 0;

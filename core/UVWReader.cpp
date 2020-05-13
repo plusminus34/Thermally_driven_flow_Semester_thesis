@@ -40,7 +40,7 @@ RegVectorField3f* UVWFromVTIFile(string filename) {
 	return uvw;
 }
 
-RegVectorField3f* UVWFromNCFile(string filename, const vector<float>& lv1_to_h) {
+RegVectorField3f* UVWFromNCFile(string filename) {
 	cout << "Importing UVW from " << filename << endl;
 	// Constants: variable names and unit vectors
 	std::string varname[3];
@@ -126,10 +126,6 @@ RegVectorField3f* UVWFromNCFile(string filename, const vector<float>& lv1_to_h) 
 		Vec3i gridCoord = uvw->GetGridCoord(i);
 		float value = (field->GetVertexDataAt(gridCoord + uX + uY) + field->GetVertexDataAt(gridCoord + uX + uY + uZ)) * 0.5f;
 		Vec3f v = uvw->GetVertexDataAt(gridCoord); v[2] = value;
-		// rescale W using lv1_to_h
-		if (lv1_to_h.size() == field->GetResolution()[2]) {
-			v[2] /= abs((lv1_to_h[gridCoord[2] + 1] - lv1_to_h[gridCoord[2]]));
-		}
 		uvw->SetVertexDataAt(gridCoord, v);
 	}
 	delete field;

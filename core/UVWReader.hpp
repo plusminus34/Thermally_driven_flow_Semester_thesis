@@ -2,11 +2,11 @@
 
 #include <string>
 #include <vector>
-#include "RegularGrid.hpp"
+#include "RlonRlatHField.hpp"
 #include "CoordinateTransform.hpp"
 
 using namespace std;
 
 RegVectorField3f* UVWFromVTIFile(string filename = "UVW.vti");
 
-RegVectorField3f* UVWFromNCFile(string filename, const vector<float>& lv_to_h);
+RegVectorField3f* UVWFromNCFile(string filename);

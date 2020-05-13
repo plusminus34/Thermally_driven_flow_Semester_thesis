@@ -4,7 +4,7 @@
 #include "ImportantPart.hpp"
 #include "core/NetCDF.hpp"
 
-ImportantPart::ImportantPart(): ringbuffer(3), trajectories(1) {
+ImportantPart::ImportantPart(): trajectories(1) {
 	basefilename = "lfff";//followed by DDHHMMSS, possibly 'c', and .nc
 }
 
@@ -75,13 +75,14 @@ void ImportantPart::doStuff() {
 		Vec3i gridCoord(0, 0, i);
 		lv_to_h[i] = hhl->GetVertexDataAt(gridCoord);
 	}
-	delete hhl;
+	//delete hhl;//TODO align hhl grid with uvw
 	
 	// setup ringbuffer
 	int file_i = 0;
-	ringbuffer[0] = UVWFromNCFile(files[0], lv_to_h);
-	ringbuffer[1] = UVWFromNCFile(files[1], lv_to_h);
-	ringbuffer[2] = UVWFromNCFile(files[2], lv_to_h);
+	vector<RlonRlatHField*> ringbuffer(3);
+	ringbuffer[0] = new RlonRlatHField(UVWFromNCFile(files[0]), hhl);
+	ringbuffer[1] = new RlonRlatHField(UVWFromNCFile(files[1]), hhl);
+	ringbuffer[2] = new RlonRlatHField(UVWFromNCFile(files[2]), hhl);
 	int ri0 = 0, ri1 = 1, ri2 = 2;
 
 	// store a list of trajectories that haven't left the bounding box
@@ -89,7 +90,7 @@ void ImportantPart::doStuff() {
 	for (int i = 0; i < trajectories.size(); ++i) active_paths[i] = &trajectories[i];
 
 	// domain is relevant for checking
-	const BoundingBox3d bb = ringbuffer[0]->GetDomain();
+	const BoundingBox3d bb = hhl->GetDomain();//TODO that's probably incorrect
 	BoundingBox<Vec3f> bb_f(Vec3f(bb.GetMin()[0], bb.GetMin()[1], bb.GetMin()[1]), Vec3f(bb.GetMax()[0], bb.GetMax()[1], bb.GetMax()[1]));
 	// and an extra variable to mark the final part where only 2 fields are used
 	bool finalPart = false;
@@ -103,10 +104,10 @@ void ImportantPart::doStuff() {
 			ri0 = ri1;
 			ri1 = ri2;
 			if (files.size() > file_i + 3) {
-				ringbuffer[file_i % 3] = UVWFromNCFile(files[file_i + 3], lv_to_h);
+				ringbuffer[file_i % 3] = new RlonRlatHField(UVWFromNCFile(files[file_i + 3]), hhl);
 			}
 			else {
-				ringbuffer[file_i % 3] = new RegVectorField3f(Vec3i(1,1,1), bb);
+				ringbuffer[file_i % 3] = nullptr;// new RegVectorField3f(Vec3i(1, 1, 1), bb);
 				finalPart = true;
 			}
 			ri2 = file_i % 3;
@@ -124,6 +125,6 @@ void ImportantPart::doStuff() {
 		}
 	}
 	//--------------------- the end
-	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr)delete ringbuffer[i];
+	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];
 	std::cout << "Paths are finished\n";
 }
