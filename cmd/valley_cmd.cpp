@@ -259,7 +259,6 @@ int main(int argc, char *argv[])
 			cout << "There will be up to "<<nSteps<<" steps per trajectory\n";
 			cout << "Confirm (0/1)> "; cin >> confirmed;
 		}
-		delete field;
 
 		ImportantPart imp;
 
@@ -282,6 +281,10 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
+
+		imp.helpWithStuff(field);
+		delete field;
+
 		imp.doStuff();
 
 		NetCDF::WritePaths("imp_paths.nc", imp.trajectories);

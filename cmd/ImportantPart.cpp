@@ -81,6 +81,47 @@ void ImportantPart::doStuff() {
 	int file_i = 0;
 	vector<RlonRlatHField*> ringbuffer(3);
 	ringbuffer[0] = new RlonRlatHField(UVWFromNCFile(files[0]), hhl);
+	// Ensure hhl and UVW are compatible
+	{
+		Vec3d hhlmin = hhl->GetDomain().GetMin();
+		Vec3d hhlmax = hhl->GetDomain().GetMax();
+		Vec3i hhlres = hhl->GetResolution();
+
+		assert(hhlres[0] == resolution[0] + 1);
+		assert(hhlres[1] == resolution[1] + 1);
+		assert(hhlres[2] == resolution[2] + 1);
+		cout << "as it should be\n";
+		Vec3i offset(1, 1, 0);
+		/*
+		hhlres: 1158 774 81
+		uvwres: 1157 773 80
+		hhlbounds min: -6.8		-4.4	0
+		uvwbounds min:  -6.795	 -4.395	0
+		hhlbounds max: 4.77		3.33	 80
+		uvwbounds max: 4.77		3.33	79
+		*/
+
+		hhl;
+		Vec3i res = resolution + Vec3i(0, 0, 1);
+		Vec3d bbmin = boundsmin, bbmax = boundsmax;
+		BoundingBox3d domain(bbmin,bbmax);
+		RegScalarField3f* trunc_hhl = new RegScalarField3f(res, domain);
+
+		int howmuch = trunc_hhl->GetData().size();
+		cout << "Filling the " << howmuch << " fields of HHL (truncated)\n";
+		for (int i = 0; i < howmuch; ++i) {
+			Vec3i coord = trunc_hhl->GetGridCoord(i);
+			trunc_hhl->SetVertexDataAt(coord, hhl->GetVertexDataAt(coord + offset));
+		}
+
+		delete hhl;
+		hhl = trunc_hhl;
+		cout << "It is done\n";
+		//delete ringbuffer[0];
+		//delete trunc_hhl;
+	}
+	//return;
+	// back to ringbuffer
 	ringbuffer[1] = new RlonRlatHField(UVWFromNCFile(files[1]), hhl);
 	ringbuffer[2] = new RlonRlatHField(UVWFromNCFile(files[2]), hhl);
 	int ri0 = 0, ri1 = 1, ri2 = 2;
@@ -127,4 +168,11 @@ void ImportantPart::doStuff() {
 	//--------------------- the end
 	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];
 	std::cout << "Paths are finished\n";
+}
+
+void ImportantPart::helpWithStuff(RegVectorField3f* uvw)
+{
+	boundsmin = uvw->GetDomain().GetMin();
+	boundsmax = uvw->GetDomain().GetMax();
+	resolution = uvw->GetResolution();
 }

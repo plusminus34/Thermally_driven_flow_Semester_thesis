@@ -25,6 +25,9 @@ public:
 	void setFileOriginTime(int t0) { file_t0 = t0; }
 	void setFileTimestep(int dt) { file_dt = dt; }
 
+	// for resizing hhl
+	void helpWithStuff(RegVectorField3f* uvw);
+
 	// convert the DDHHMMSS string to int (number of seconds)
 	int DDHHMMSSToInt(std::string input) const;
 	// and the other way around
@@ -39,4 +42,8 @@ private:
 	double start_t = 0.0;
 	double end_t = 1200.0;
 	double dt = 1; int nSteps = 1200;
+
+	//kinda stupid way to find out how big hhl should be
+	Vec3d boundsmin, boundsmax;
+	Vec3i resolution;
 };
