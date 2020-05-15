@@ -69,23 +69,19 @@ void ImportantPart::doStuff() {
 
 	// Helping: store a 1d-array mapping level1 to height (TODO is this correct?)
 	cout << "Will import HHL from " << constantsfile << endl;
-	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
-	vector<float> lv_to_h(hhl->GetResolution()[2]);
-	for (int i = 0; i < lv_to_h.size(); ++i) {
-		Vec3i gridCoord(0, 0, i);
-		lv_to_h[i] = hhl->GetVertexDataAt(gridCoord);
-	}
+	RegScalarField3f* tmp_hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
+	RegScalarField3f* hhl;
 	//delete hhl;//TODO align hhl grid with uvw
 	
 	// setup ringbuffer
 	int file_i = 0;
 	vector<RlonRlatHField*> ringbuffer(3);
-	ringbuffer[0] = new RlonRlatHField(UVWFromNCFile(files[0]), hhl);
+	ringbuffer[0] = new RlonRlatHField(UVWFromNCFile(files[0]), tmp_hhl);
 	// Ensure hhl and UVW are compatible
 	{
-		Vec3d hhlmin = hhl->GetDomain().GetMin();
-		Vec3d hhlmax = hhl->GetDomain().GetMax();
-		Vec3i hhlres = hhl->GetResolution();
+		Vec3d hhlmin = tmp_hhl->GetDomain().GetMin();
+		Vec3d hhlmax = tmp_hhl->GetDomain().GetMax();
+		Vec3i hhlres = tmp_hhl->GetResolution();
 
 		assert(hhlres[0] == resolution[0] + 1);
 		assert(hhlres[1] == resolution[1] + 1);
@@ -101,25 +97,29 @@ void ImportantPart::doStuff() {
 		uvwbounds max: 4.77		3.33	79
 		*/
 
-		hhl;
 		Vec3i res = resolution + Vec3i(0, 0, 1);
 		Vec3d bbmin = boundsmin, bbmax = boundsmax;
 		BoundingBox3d domain(bbmin,bbmax);
-		RegScalarField3f* trunc_hhl = new RegScalarField3f(res, domain);
+		cout << "Res is " << res[0] << " " << res[1] << " " << res[2] << endl;
+		hhl = new RegScalarField3f(res, domain);
 
-		int howmuch = trunc_hhl->GetData().size();
+		int howmuch = hhl->GetData().size();
 		cout << "Filling the " << howmuch << " fields of HHL (truncated)\n";
 		for (int i = 0; i < howmuch; ++i) {
-			Vec3i coord = trunc_hhl->GetGridCoord(i);
-			trunc_hhl->SetVertexDataAt(coord, hhl->GetVertexDataAt(coord + offset));
+			Vec3i coord = hhl->GetGridCoord(i);
+			hhl->SetVertexDataAt(coord, tmp_hhl->GetVertexDataAt(coord + offset));
 		}
 
-		delete hhl;
-		hhl = trunc_hhl;
+		//TODO hhl ends up wrong
+		delete tmp_hhl;
+		//hhl = trunc_hhl;
 		cout << "It is done\n";
 		//delete ringbuffer[0];
 		//delete trunc_hhl;
 	}
+	ringbuffer[0]->hhl = hhl;
+	Vec3i res = hhl->GetResolution();
+	cout << "Res is " << res[0] << " " << res[1] << " " << res[2] << endl;
 	//return;
 	// back to ringbuffer
 	ringbuffer[1] = new RlonRlatHField(UVWFromNCFile(files[1]), hhl);
