@@ -118,9 +118,6 @@ void ImportantPart::doStuff() {
 		//delete trunc_hhl;
 	}
 	ringbuffer[0]->hhl = hhl;
-	Vec3i res = hhl->GetResolution();
-	cout << "Res is " << res[0] << " " << res[1] << " " << res[2] << endl;
-	//return;
 	// back to ringbuffer
 	ringbuffer[1] = new RlonRlatHField(UVWFromNCFile(files[1]), hhl);
 	ringbuffer[2] = new RlonRlatHField(UVWFromNCFile(files[2]), hhl);
@@ -136,8 +133,14 @@ void ImportantPart::doStuff() {
 	// and an extra variable to mark the final part where only 2 fields are used
 	bool finalPart = false;
 
+	// see that paths are of correct size
+	for (int i = 0; i < trajectories.size(); ++i) {
+		trajectories[i].resize(nSteps + 1);
+	}
+
 	//--------------------- Where particles are traced and paths filled
 	// compute trajectories
+	int step_i = 1;
 	for (double t = start_t; t < end_t; t += dt) {
 		cout << "time " << t << endl;
 		if (t >= file_t[file_i + 1]) {
@@ -148,22 +151,27 @@ void ImportantPart::doStuff() {
 				ringbuffer[file_i % 3] = new RlonRlatHField(UVWFromNCFile(files[file_i + 3]), hhl);
 			}
 			else {
-				ringbuffer[file_i % 3] = nullptr;// new RegVectorField3f(Vec3i(1, 1, 1), bb);
+				ringbuffer[file_i % 3] = nullptr;
 				finalPart = true;
 			}
 			ri2 = file_i % 3;
 			++file_i;
 		}
 		for (int i = 0; i < trajectories.size(); ++i) {
-			Vec3f pos_f = trajectories[i][trajectories[i].size() - 1];
-			if (bb_f.Contains(pos_f)) {
+			//cout << "pos_f goes from ";
+			Vec3f pos_f = trajectories[i][step_i - 1];
+			//cout << pos_f[0] << " " << pos_f[1] << " " << pos_f[2];
+			if(true){//if (bb_f.Contains(pos_f)) { TODO domain matters
 				if (!finalPart)
 					pos_f = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
 				else
 					pos_f = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], pos_f, t, dt);
 			}
-			trajectories[i].push_back(pos_f);
+			//cout << " to "<< pos_f[0] << " " << pos_f[1] << " " << pos_f[2]<<endl;
+			//trajectories[i].push_back(pos_f);
+			trajectories[i][step_i] = pos_f;
 		}
+		++step_i;
 	}
 	//--------------------- the end
 	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];

@@ -11,7 +11,6 @@ RlonRlatHField::RlonRlatHField(RegVectorField3f * velocityField, RegScalarField3
 	dx = uvw->GetVoxelSize()[0];
 	dy = uvw->GetVoxelSize()[1];
 	Vec3i rese = hhl->GetResolution();
-	std::cout << "RlonRlatField: HHl-Res is " << rese[0] << " " << rese[1] << " " << rese[2] << std::endl;
 }
 Vec3f RlonRlatHField::Sample(const Vec3d & coord) const
 {
@@ -19,46 +18,62 @@ Vec3f RlonRlatHField::Sample(const Vec3d & coord) const
 	int rlat_i = floor(coord[1]);
 	float w0 = (coord[0] - rlon_i * dx) / dx;
 	float w1 = (coord[1] - rlat_i * dy) / dy;
-	cout << "Sample at "<<coord[0]<<" "<<coord[1]<<" "<<coord[2]<<endl;
-	cout << "  w0,w1 = " << w0 << "," << w1 << endl;
+	//cout << "Sample at "<<coord[0]<<" "<<coord[1]<<" "<<coord[2]<<endl;
+	//cout << "  w0,w1 = " << w0 << "," << w1 << endl;
+	//cout << "RlonRlat sample 2 for tmp0\n";
 	Vec3f tmp0 = SampleXYiHd(rlon_i, rlat_i, coord[2]) * (1 - w0) + SampleXYiHd(rlon_i + 1, rlat_i, coord[2]) * w0;
+	//cout << "RlonRlat sample 2 for tmp1\n";
 	Vec3f tmp1 = SampleXYiHd(rlon_i, rlat_i + 1, coord[2]) * (1 - w0) + SampleXYiHd(rlon_i + 1, rlat_i + 1, coord[2]) * w0;
+	//cout << "  tmp0 " << tmp0[0] << " " << tmp0[2] << "   tmp1 " << tmp1[0] << " " << tmp1[2] << endl;
 	return tmp0 * (1 - w1) + tmp1 * w1;
 }
 
 Vec3f RlonRlatHField::SampleXYiHd(int rlon_i, int rlat_i, double h) const
 {
-	cout << "samplexyihd " << rlon_i << " " << rlat_i << " " << h << endl;
+	//cout << "samplexyihd " << rlon_i << " " << rlat_i << " " << h << endl;
 	/*
-	time 11
-Sample at 0 2 3
-  w0,w1 = 0,197.871
-samplexyihd 0 2 3
-Assertion failed: gridCoord[dim] >= 0 && gridCoord[dim] < mResolution[dim],
-file c:\users\wiggerl\documents\valley-winds\core\RegularGrid.hpp, line 134
+	seems	level	0		80
+			height	22000	800-something
 	*/
+	//TODO figure out why this is necessary
+	if (rlon_i < 0) {
+		cout << "rloni = " << rlon_i << endl;
+		rlon_i = 0;
+	}
+	else if (rlon_i >= hhl->GetResolution()[0]) {
+		cout << "rloni = " << rlon_i << endl;
+		rlon_i = hhl->GetResolution()[0]-1;
+	}
+	if (rlat_i < 0) {
+		cout << "rlati = " << rlat_i << endl;
+		rlat_i = 0;
+	}
+	else if (rlat_i >= hhl->GetResolution()[1]) {
+		cout << "rlati = " << rlat_i << endl;
+		rlat_i = hhl->GetResolution()[1] - 1;
+	}
+
 	//binary search at rlon_i,rlat_i to find level for h
 	int lower = 0;
 	int upper = lvl_top;
+	//hhl->GetDomain().ClampToDomain(Vec3i(rlon_i, rlat_i, lower))
+	if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower))) return Vec3f(0,0,0);
+	if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper))) return Vec3f(0,0,0);
 
-	Vec3i res = hhl->GetResolution();
-	cout << "Sample: HHL-Res is " << res[0] << " " << res[1] << " " << res[2] << endl;
-	cout << "lower&upper start at " << lower << " and " << upper << endl;
-	if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower))) return Vec3f(0,0,0);
-	if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper))) return Vec3f(0,0,0);
 	while (upper > lower + 1) {
 		int half = (upper + lower) / 2;
-		cout << "searching at "<<half<<" between " << lower << " and " << upper << endl;
-		if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half)) > h)
+		//cout << "half " << half << " between " << upper << " and " << lower << endl;
+		if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half)) < h)
 			upper = half;
 		else lower = half;
 	}
 	const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper));
 	const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower));
 	double lvl = (h - h0) / (h1 - h0);
-	cout << "found lvl " << lvl << " between " << lower << " and " << upper << endl;
+	//cout << "found lvl " << lvl << " between " << lower << " and " << upper << endl;
 	// and then sample uvw
 	Vec3d samplePoint = uvw->GetCoordAt(Vec3i(rlon_i, rlat_i, 0));
 	samplePoint[2] = lvl;
+	//cout << "samplePoint is " << samplePoint[0] << " " << samplePoint[1] << " " << samplePoint[2] << endl;
 	return uvw->Sample(samplePoint);
 }

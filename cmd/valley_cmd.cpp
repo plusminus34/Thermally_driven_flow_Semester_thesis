@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
 		}
 		cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
 		double tracing_bounds[6];
-		double spacing;
+		double spacing[3];
 		int paths_dim[3];
 		int nPaths;
 		double t0, t1, dt;
@@ -237,16 +237,20 @@ int main(int argc, char *argv[])
 			cout << "Input bounds for tracing (Format: min_x max_x min_y max_y min_z max_z)\n> ";
 			for (int i = 0; i < 6; ++i) {
 				cin >> tracing_bounds[i];
+				/*
 				if (i % 2 == 0) tracing_bounds[i] = std::max(tracing_bounds[i], bounds[i]);
 				else {
 					tracing_bounds[i] = std::min(tracing_bounds[i], bounds[i]);
 					if (tracing_bounds[i - 1] > tracing_bounds[i]) swap(tracing_bounds[i - 1], tracing_bounds[i]);
 				}
+				*/
 			}
-			cout << "Input spacing between individual starting points> ";
-			cin >> spacing;
+			cout << "Input spacing between individual starting points  (Format: dx dy dz)> ";
+			cin >> spacing[0];
+			cin >> spacing[1];
+			cin >> spacing[2];
 			for (int i = 0; i < 3; ++i) {
-				paths_dim[i] = floor((tracing_bounds[2 * i + 1] - tracing_bounds[2 * i]) / spacing);
+				paths_dim[i] = floor((tracing_bounds[2 * i + 1] - tracing_bounds[2 * i]) / spacing[i]);
 				assert(paths_dim[i] > 0);
 			}
 			nPaths = paths_dim[0] * paths_dim[1] * paths_dim[2];
@@ -268,14 +272,14 @@ int main(int argc, char *argv[])
 
 		imp.setTimeBoundaries(t0, t1);
 		imp.setTimestep(dt);
-		// 2 0 1 2 3 4 5 0.1 11 1111 44 1
+		// 2 0 0.3 2 2.3 -10 8000 0.1 0.1 300 11 1111 44 1
 
 		imp.trajectories.resize(nPaths);
 		for (int i = 0; i < paths_dim[0]; ++i) {
 			for (int j = 0; j < paths_dim[1]; ++j) {
 				for (int k = 0; k < paths_dim[2]; ++k) {
 					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
-					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing, tracing_bounds[2] + j * spacing, tracing_bounds[3] + k * spacing);
+					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing[0], tracing_bounds[2] + j * spacing[1], tracing_bounds[3] + k * spacing[2]);
 					imp.trajectories[path].resize(1);
 					imp.trajectories[path][0] = position;
 				}
@@ -288,6 +292,12 @@ int main(int argc, char *argv[])
 		imp.doStuff();
 
 		NetCDF::WritePaths("imp_paths.nc", imp.trajectories);
+		for (int i = 0; i < imp.trajectories.size(); ++i) {
+			cout << "END: Path " << i << endl;
+			for (int j = 0; j < imp.trajectories[i].size(); ++j) {
+				cout << "  point " << j << ": " << imp.trajectories[i][j][0] << " " << imp.trajectories[i][j][1] << " " << imp.trajectories[i][j][2] << endl;
+			}
+		}
 	}
 	return 0;
 }
