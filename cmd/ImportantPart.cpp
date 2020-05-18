@@ -69,56 +69,12 @@ void ImportantPart::doStuff() {
 
 	// Helping: store a 1d-array mapping level1 to height (TODO is this correct?)
 	cout << "Will import HHL from " << constantsfile << endl;
-	RegScalarField3f* tmp_hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
-	RegScalarField3f* hhl;
-	//delete hhl;//TODO align hhl grid with uvw
+	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
 	
 	// setup ringbuffer
 	int file_i = 0;
 	vector<RlonRlatHField*> ringbuffer(3);
-	ringbuffer[0] = new RlonRlatHField(UVWFromNCFile(files[0]), tmp_hhl);
-	// Ensure hhl and UVW are compatible
-	{
-		Vec3d hhlmin = tmp_hhl->GetDomain().GetMin();
-		Vec3d hhlmax = tmp_hhl->GetDomain().GetMax();
-		Vec3i hhlres = tmp_hhl->GetResolution();
-
-		assert(hhlres[0] == resolution[0] + 1);
-		assert(hhlres[1] == resolution[1] + 1);
-		assert(hhlres[2] == resolution[2] + 1);
-		cout << "as it should be\n";
-		Vec3i offset(1, 1, 0);
-		/*
-		hhlres: 1158 774 81
-		uvwres: 1157 773 80
-		hhlbounds min: -6.8		-4.4	0
-		uvwbounds min:  -6.795	 -4.395	0
-		hhlbounds max: 4.77		3.33	 80
-		uvwbounds max: 4.77		3.33	79
-		*/
-
-		Vec3i res = resolution + Vec3i(0, 0, 1);
-		Vec3d bbmin = boundsmin, bbmax = boundsmax;
-		BoundingBox3d domain(bbmin,bbmax);
-		cout << "Res is " << res[0] << " " << res[1] << " " << res[2] << endl;
-		hhl = new RegScalarField3f(res, domain);
-
-		int howmuch = hhl->GetData().size();
-		cout << "Filling the " << howmuch << " fields of HHL (truncated)\n";
-		for (int i = 0; i < howmuch; ++i) {
-			Vec3i coord = hhl->GetGridCoord(i);
-			hhl->SetVertexDataAt(coord, tmp_hhl->GetVertexDataAt(coord + offset));
-		}
-
-		//TODO hhl ends up wrong
-		delete tmp_hhl;
-		//hhl = trunc_hhl;
-		cout << "It is done\n";
-		//delete ringbuffer[0];
-		//delete trunc_hhl;
-	}
-	ringbuffer[0]->hhl = hhl;
-	// back to ringbuffer
+	ringbuffer[0] = new RlonRlatHField(UVWFromNCFile(files[0]), hhl);
 	ringbuffer[1] = new RlonRlatHField(UVWFromNCFile(files[1]), hhl);
 	ringbuffer[2] = new RlonRlatHField(UVWFromNCFile(files[2]), hhl);
 	int ri0 = 0, ri1 = 1, ri2 = 2;

@@ -7,10 +7,10 @@ RlonRlatHField::RlonRlatHField(RegVectorField3f * velocityField, RegScalarField3
 {
 	uvw = velocityField;
 	hhl = levelToHeight;
+	hhl_offset = Vec3i(1, 1, 0);
 	lvl_top = hhl->GetResolution()[2] - 1;
 	dx = uvw->GetVoxelSize()[0];
 	dy = uvw->GetVoxelSize()[1];
-	Vec3i rese = hhl->GetResolution();
 }
 Vec3f RlonRlatHField::Sample(const Vec3d & coord) const
 {
@@ -47,35 +47,34 @@ Vec3f RlonRlatHField::SampleXYiHd(int rlon_i, int rlat_i, double h) const
 		//cout << "rloni = " << rlon_i << endl;
 		rlon_i = 0;
 	}
-	else if (rlon_i >= hhl->GetResolution()[0]) {
+	else if (rlon_i >= uvw->GetResolution()[0]) {
 		//cout << "rloni = " << rlon_i << endl;
-		rlon_i = hhl->GetResolution()[0]-1;
+		rlon_i = uvw->GetResolution()[0] - 1;
 	}
 	if (rlat_i < 0) {
 		//cout << "rlati = " << rlat_i << endl;
 		rlat_i = 0;
 	}
-	else if (rlat_i >= hhl->GetResolution()[1]) {
+	else if (rlat_i >= uvw->GetResolution()[1]) {
 		//cout << "rlati = " << rlat_i << endl;
-		rlat_i = hhl->GetResolution()[1] - 1;
+		rlat_i = uvw->GetResolution()[1] - 1;
 	}
 
 	//binary search at rlon_i,rlat_i to find level for h
 	int lower = 0;
 	int upper = lvl_top;
-	//hhl->GetDomain().ClampToDomain(Vec3i(rlon_i, rlat_i, lower))
-	if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower))) return Vec3f(0,0,0);
-	if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper))) return Vec3f(0,0,0);
+	if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset)) return Vec3f(0,0,0);
+	if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset)) return Vec3f(0,0,0);
 
 	while (upper > lower + 1) {
 		int half = (upper + lower) / 2;
 		//cout << "half " << half << " between " << upper << " and " << lower << endl;
-		if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half)) < h)
+		if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half) + hhl_offset) < h)
 			upper = half;
 		else lower = half;
 	}
-	const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper));
-	const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower));
+	const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset);
+	const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset);
 	double lvl = (h - h0) / (h1 - h0);
 	//cout << "found lvl " << lvl << " between " << lower << " and " << upper << endl;
 	// and then sample uvw

@@ -11,9 +11,12 @@ public:
 
 	virtual Vec3f Sample(const Vec3d& coord) const override;
 	Vec3f SampleXYiHd(int rlon_i, int rlat_i, double h) const;
-	RegScalarField3f* hhl;
 private:
 	RegVectorField3f* uvw;
+	RegScalarField3f* hhl;
+
+	Vec3i hhl_offset;
+
 	int lvl_top;
 	float dx, dy;
 };
