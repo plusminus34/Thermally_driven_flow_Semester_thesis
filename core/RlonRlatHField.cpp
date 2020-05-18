@@ -14,12 +14,19 @@ RlonRlatHField::RlonRlatHField(RegVectorField3f * velocityField, RegScalarField3
 }
 Vec3f RlonRlatHField::Sample(const Vec3d & coord) const
 {
-	int rlon_i = floor(coord[0]);
-	int rlat_i = floor(coord[1]);
-	float w0 = (coord[0] - rlon_i * dx) / dx;
-	float w1 = (coord[1] - rlat_i * dy) / dy;
+	double x0 = uvw->GetDomain().GetMin()[0];
+	double y0 = uvw->GetDomain().GetMin()[1];
+	int rlon_i = floor((coord[0] - x0) / dx);
+	int rlat_i = floor((coord[1] - y0) / dy);
+	float w0 = (coord[0] - x0 - rlon_i * dx) / dx;
+	float w1 = (coord[1] - y0 - rlat_i * dy) / dy;
 	//cout << "Sample at "<<coord[0]<<" "<<coord[1]<<" "<<coord[2]<<endl;
+	//if(w0<0||w0>1||w1<0||w1>1)
 	//cout << "  w0,w1 = " << w0 << "," << w1 << endl;
+	if (w0 < 0) w0 = 0;
+	else if (w0 > 1) w0 = 1;
+	if (w1 < 0) w1 = 0;
+	else if (w1 > 1) w1 = 1;
 	//cout << "RlonRlat sample 2 for tmp0\n";
 	Vec3f tmp0 = SampleXYiHd(rlon_i, rlat_i, coord[2]) * (1 - w0) + SampleXYiHd(rlon_i + 1, rlat_i, coord[2]) * w0;
 	//cout << "RlonRlat sample 2 for tmp1\n";
@@ -37,19 +44,19 @@ Vec3f RlonRlatHField::SampleXYiHd(int rlon_i, int rlat_i, double h) const
 	*/
 	//TODO figure out why this is necessary
 	if (rlon_i < 0) {
-		cout << "rloni = " << rlon_i << endl;
+		//cout << "rloni = " << rlon_i << endl;
 		rlon_i = 0;
 	}
 	else if (rlon_i >= hhl->GetResolution()[0]) {
-		cout << "rloni = " << rlon_i << endl;
+		//cout << "rloni = " << rlon_i << endl;
 		rlon_i = hhl->GetResolution()[0]-1;
 	}
 	if (rlat_i < 0) {
-		cout << "rlati = " << rlat_i << endl;
+		//cout << "rlati = " << rlat_i << endl;
 		rlat_i = 0;
 	}
 	else if (rlat_i >= hhl->GetResolution()[1]) {
-		cout << "rlati = " << rlat_i << endl;
+		//cout << "rlati = " << rlat_i << endl;
 		rlat_i = hhl->GetResolution()[1] - 1;
 	}
 
