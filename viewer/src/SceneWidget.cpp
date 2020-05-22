@@ -6,6 +6,7 @@
 #include <vtkRenderer.h>
 #include <vtkProperty.h>
 #include <vtkOutlineFilter.h>
+#include <vtkDelaunay2D.h>
 
 #include "core/Math.hpp"
 #include <vtkPoints.h>
@@ -93,76 +94,22 @@ void SceneWidget::CreateTestScene()
 
 	const double bb_size = 7.0;
 
-	// 
-
-	ParticleTracer<Vec2f, 2> tracer2;
-	ParticleTracer<Vec3f, 3> tracer3;
-	ParticleTracer<Vec4f, 4> tracer4;
-
-	ABCFlow abcFlow_analytic;
-	CenterField centerField_analytic;
-
-	const Vec2i res2(sampled_field_resolution, sampled_field_resolution);
-	const BoundingBox2d bb2d(Vec2d(-2, -2), Vec2d(2, 2));
-	RegVectorField2f centerField_sampled(res2, bb2d);
-	for (size_t i = 0; i < res2[0] * res2[1]; ++i) {
-		Vec2i gridCoord = centerField_sampled.GetGridCoord(i);
-		Vec2d coord = centerField_sampled.GetCoordAt(gridCoord);
-		centerField_sampled.SetVertexDataAt(gridCoord, centerField_analytic.Sample(coord));
+	// display surface
+	std::string constantsfile = "../../../lfff00000000c.nc";
+	RegScalarField2f* hsurf = NetCDF::ImportScalarField2f(constantsfile, "HSURF", "rlat", "rlon");
+	vtkSmartPointer<vtkPoints> hfield_points = vtkSmartPointer<vtkPoints>::New();
+	for (int i = 0; i < hsurf->GetData().size(); ++i) {
+		Vec2i gridCoord = hsurf->GetGridCoord(i);
+		Vec2d coord = hsurf->GetCoordAt(gridCoord);
+		hfield_points->InsertNextPoint(coord[1], coord[0], hsurf->GetData()[i]);
 	}
-
-	const Vec4i res4(sampled_field_resolution, sampled_field_resolution, sampled_field_resolution, sampled_field_resolution);
-	const BoundingBox<Vec4d> bb4d(Vec4d(-bb_size, -bb_size, -bb_size, -bb_size), Vec4d(bb_size, bb_size, bb_size, bb_size));
-	RegularGrid<Vec4f,4> abcFlow_sampled(res4, bb4d);
-	for (size_t i = 0; i < res4[0] * res4[1] * res4[2] * res4[3]; ++i) {
-		Vec4i gridCoord = abcFlow_sampled.GetGridCoord(i);
-		Vec4d coord = abcFlow_sampled.GetCoordAt(gridCoord);
-		abcFlow_sampled.SetVertexDataAt(gridCoord, abcFlow_analytic.Sample(coord));
-	}
-
-	const int nSteps = ceil((t1 - t0) / dt);
-
-	/*
-	int nPaths = 100;//12;
-	std::vector<std::vector<Vec3f>> paths(nPaths);
-	std::vector<Vec3f> pathColors(nPaths);
-	for (int i = 0; i < nPaths; ++i) paths[i].resize(nSteps + 1);
-	*/
-	/*
-	for (int p = 0; p < 6;++p) {
-		int path = p;
-		pathColors[path] = Vec3f(1, 0, 0);
-		if (p % 2 == 0) pathColors[path][2] = 0.7f;
-		Vec2f position(0.5f + 0.1f*p, 0);
-		paths[path][0] = Vec3f(position[0], position[1], 0);
-		for (int i = 0; i < nSteps; ++i) {
-			Vec2d positiond(position[0], position[1]);
-			if (p % 2 == 0) {
-				position = tracer2.traceParticle(centerField_sampled, positiond, dt);
-			}
-			else {
-				position = tracer2.traceParticle(centerField_analytic, positiond, dt);
-			}
-			paths[path][i+1] = Vec3f(position[0], position[1], 0);
-		}
-	}
-	for (int p = 6; p < 12; ++p) {
-		int path = p;
-		pathColors[path] = Vec3f(0.2f, 0.9f, 0.1f);
-		if (p % 2 == 0)pathColors[path][0] = 0.8f;
-		Vec4f position(0.5f, -0.2f + 0.05f*p, 0.1f, 0);
-		paths[path][0] = Vec3f(position[0], position[1], position[2]);
-		for (int i = 0; i < nSteps; ++i) {
-			Vec4d positiond(position[0], position[1], position[2], position[3]);
-			if (p % 2 == 0) {
-				position = tracer4.traceParticle(abcFlow_analytic, positiond, dt);
-			}
-			else {
-				position = tracer4.traceParticle(abcFlow_sampled, positiond, dt);
-			}
-			paths[path][i + 1] = Vec3f(position[0], position[1], position[2]);
-		}
-	}*/
+	vtkSmartPointer<vtkPolyData> hfield_polydata = vtkSmartPointer<vtkPolyData>::New();
+	hfield_polydata->SetPoints(hfield_points);
+	vtkSmartPointer<vtkDelaunay2D> delaunay = vtkSmartPointer<vtkDelaunay2D>::New();
+	delaunay->SetInputData(hfield_polydata);
+	vtkSmartPointer<vtkPolyData> landscape = delaunay->GetOutput();
+	delaunay->Update();// TODO this takes a while
+	delete hsurf;
 	
 	//Read UVW and convert into RegVectorfield
 	vtkNew<vtkXMLImageDataReader> imageReader;
@@ -179,55 +126,6 @@ void SceneWidget::CreateTestScene()
 	double* bounds = imageData->GetBounds();
 	cout << "Bounds: " << bounds[0] << " - " << bounds[1] << "\t" << bounds[2] << " x " << bounds[3] << "\t" << bounds[4] << " x " << bounds[5] << endl;
 	Vec3f midpoint(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[2] + bounds[3]), 0.5*(bounds[4] + bounds[5]));
-
-		/*
-		Vec3i res(dims[0], dims[1], dims[2]);
-		Vec3d bb_min(bounds[0], bounds[2], bounds[3]);
-		Vec3d bb_max(bounds[1], bounds[3], bounds[5]);
-		RegVectorField3f field(res, BoundingBox3d(bb_min, bb_max));
-
-		vtkSmartPointer<vtkPointData> pointData = imageData->GetPointData();
-		//vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray("U");// apparently it's still called W or U ... TODO change that
-		vtkSmartPointer<vtkDataArray> dataArray = pointData->GetArray(0);
-
-		int nPts = imageData->GetNumberOfPoints();
-		assert(dataArray->GetNumberOfTuples() == nPts);
-		cout << "Filling field ...\n";
-		for (int i = 0; i < nPts; ++i) {
-			double* pt = dataArray->GetTuple3(i);
-			//cout << "Pt " << i << ": " << pt[0] << "\t" << pt[1] << "\t" << pt[2] << endl;
-			Vec3i coord = field.GetGridCoord(i);
-			field.SetVertexDataAt(coord, Vec3f(pt[0], pt[1], pt[2]));
-			if (i % (nPts / 10) == 0) {
-				cout << "  " << i << " of " << nPts << endl;
-			}
-		}
-
-		Vec3f eee((bounds[1] - bounds[0]) / dims[0], (bounds[3] - bounds[2]) / dims[1], (bounds[5] - bounds[4]) / dims[2]);
-		for (int i = 0; i < 10; ++i) {
-			for (int j = 0; j < 10; ++j) {
-				int path = i * 10 + j;
-				pathColors[path] = Vec3f(0.7f + i*0.01f, 0.9f + j*0.01f, 0.3f);
-				Vec3f position = midpoint + Vec3f(i, j, 0)*eee;
-				float z0 = position[2];
-				paths[path][0] = Vec3f(position[0], position[1], position[2]);
-				for (int k = 0; k < nSteps; ++k) {
-					Vec3d positiond(position[0], position[1], position[2]);
-					position = tracer3.traceParticle(field, positiond, dt);
-					position[2] = z0;
-					paths[path][k + 1] = Vec3f(position[0], position[1], position[2]);
-					if (position[0] < bounds[0] || position[0] > bounds[1] ||
-						position[1] < bounds[2] || position[1] > bounds[3] ||
-						position[2] < bounds[4] || position[2] > bounds[5]) {
-						paths[path].resize(k + 2);
-						break;
-					}
-				}
-			}
-			Vec3f eyo = field.Sample(Vec3d(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[3] + bounds[2]), 0.5*(bounds[4] + bounds[5])));
-			cout << "sampled " << eyo[0] << " " << eyo[1] << " " << eyo[2] << endl;
-		}
-	*/
 
 	vector<vector<Vec3f>> paths;
 	NetCDF::ReadPaths("../cmd/imp_paths_first.nc", paths);
@@ -250,13 +148,19 @@ void SceneWidget::CreateTestScene()
 	outlineMapper->SetInputConnection(outline->GetOutputPort());
 	vtkNew<vtkActor> outlineActor;
 	outlineActor->SetMapper(outlineMapper);
-	double scale[] = { bounds[1] - bounds[0], bounds[3] - bounds[2],bounds[5] - bounds[4] };
+	double scale[] = { bounds[1] - bounds[0], bounds[3] - bounds[2], (bounds[5] - bounds[4]) };
 	outlineActor->SetScale(scale);
 	outlineActor->SetPosition(midpoint[0], midpoint[1], midpoint[2]);
+
+	vtkNew<vtkPolyDataMapper> landscapeMapper;
+	landscapeMapper->SetInputData(landscape);
+	vtkNew<vtkActor> landscapeActor;
+	landscapeActor->SetMapper(landscapeMapper);
 
 	vtkNew<vtkRenderer> renderer;
 	renderer->SetBackground(colors->GetColor3d("SteelBlue").GetData());
 
+	renderer->AddActor(landscapeActor);
 	renderer->AddActor(outlineActor);
 	for (int i = 0; i < paths.size(); ++i) {
 		renderer->AddActor(createLineActor(paths[i], pathColors[i]));
