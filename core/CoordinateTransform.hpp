@@ -6,8 +6,8 @@
 // TODO obtain rotated north pole from .nc file?
 const double POLE_PHI = 43;// latitude of rotated north pole
 const double POLE_LAMBDA = -170;// longitude of rotated noth pole
-const double ZRPI18 = 57.2957795;// 180/PI
-const double ZPIR18 = 0.0174532925;// PI/180
+const double ZRPI18 = 180.0 / 3.141592653589793;//   57.2957795;// 180/PI
+const double ZPIR18 = 1 / ZRPI18;//0.0174532925;// PI/180
 const double SINPOL = sin(ZPIR18*POLE_PHI);
 const double COSPOL = cos(ZPIR18*POLE_PHI);
 

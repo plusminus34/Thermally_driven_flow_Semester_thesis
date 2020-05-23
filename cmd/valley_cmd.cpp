@@ -27,29 +27,20 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
-		vector<vector<Vec3f>> yup;
-		int n = 3, m = 5;
-		yup.resize(n);
-		for (int i = 0; i < n; ++i) {
-			yup[i].resize(m);
-			for (int j = 0; j < m; ++j) {
-				yup[i][j] = Vec3f(i*j*0.2f*j, j, i*j*m*n+3);
+		double rlonmin = -6, rlonmax = 4, rlatmin = -4, rlatmax = 3;
+		int ii = 5, jj = 5;
+		for (int i = 0; i < ii; ++i) {
+			for (int j = 0; j < jj; ++j) {
+				double rlon = rlonmin + ((double)i / ii)*(rlonmax - rlonmin);
+				double rlat = rlatmin + ((double)j / jj)*(rlatmax - rlatmin);
+				double lon, lat;
+				CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
+				cout << "(rlat,rlon) (" << rlat << ", " << rlon << ")   ==>   (lat,lon) (" << lat << ", " << lon << ")\n";
+				CoordinateTransform::LatLonToRlanRlon(lat, lon, rlat, rlon);
+				cout << " back: (lat,lon) (" << lat << ", " << lon << ")   ==>   (rlat,rlon) (" << rlat << ", " << rlon << ")\n";
+
 			}
 		}
-		if (NetCDF::WritePaths("somewhere.nc", yup)) cout <<"Write paths success\n";
-		else cout << "Write paths failure\n";
-
-		yup.clear();
-		if (NetCDF::ReadPaths("somewhere.nc", yup)) {
-			cout << "Read paths success\n";
-			for (int i = 0; i < yup.size(); ++i) {
-				for (int j = 0; j < yup[i].size(); ++j) {
-					cout << "yupij" << i << j << ": " << yup[i][j][0] << " " << yup[i][j][1] << " " << yup[i][j][2] << endl;
-				}
-			}
-
-		}
-		else cout << "Read paths failure\n";
 
 		return 0;
 	}
@@ -218,14 +209,6 @@ int main(int argc, char *argv[])
 		delete field;
 	}
 	else if (input == 2) {
-		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
-		cout << "Read UVW\n";
-		double bounds[6];
-		for (int i = 0; i < 3; ++i) {
-			bounds[2 * i] = field->GetDomain().GetMin()[i];
-			bounds[2 * i + 1] = field->GetDomain().GetMax()[i];
-		}
-		cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
 		double tracing_bounds[6];
 		double spacing[3];
 		int paths_dim[3];
@@ -234,7 +217,7 @@ int main(int argc, char *argv[])
 		int nSteps;
 		bool confirmed = false;
 		while (!confirmed) {
-			cout << "Input bounds for tracing (Format: min_x max_x min_y max_y min_z max_z)\n> ";
+			cout << "Input bounds for tracing in (lat,lon,h) (Format: min_x max_x min_y max_y min_z max_z)\n> ";
 			for (int i = 0; i < 6; ++i) {
 				cin >> tracing_bounds[i];
 				/*
@@ -279,13 +262,27 @@ int main(int argc, char *argv[])
 			for (int j = 0; j < paths_dim[1]; ++j) {
 				for (int k = 0; k < paths_dim[2]; ++k) {
 					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
-					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing[0], tracing_bounds[2] + j * spacing[1], tracing_bounds[3] + k * spacing[2]);
+					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing[0], tracing_bounds[2] + j * spacing[1], tracing_bounds[4] + k * spacing[2]);
+					double lat = position[1];
+					double lon = position[0];
+					double rlat, rlon;
+					CoordinateTransform::LatLonToRlanRlon(lat, lon, rlat, rlon);
+					position[0] = rlon; position[1] = rlat;
 					imp.trajectories[path].resize(1);
 					imp.trajectories[path][0] = position;
+					cout << "  startpt " << i << j << k << ": " << position[0] << " " << position[1] << " " << position[2] << endl;
 				}
 			}
 		}
 
+		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
+		cout << "Read UVW\n";
+		double bounds[6];
+		for (int i = 0; i < 3; ++i) {
+			bounds[2 * i] = field->GetDomain().GetMin()[i];
+			bounds[2 * i + 1] = field->GetDomain().GetMax()[i];
+		}
+		//cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
 		imp.helpWithStuff(field);
 		delete field;
 
@@ -295,7 +292,11 @@ int main(int argc, char *argv[])
 		for (int i = 0; i < imp.trajectories.size(); ++i) {
 			cout << "END: Path " << i << endl;
 			for (int j = 0; j < imp.trajectories[i].size(); ++j) {
-				cout << "  point " << j << ": " << imp.trajectories[i][j][0] << " " << imp.trajectories[i][j][1] << " " << imp.trajectories[i][j][2] << endl;
+				//cout << "  point " << j << ": " << imp.trajectories[i][j][0] << " " << imp.trajectories[i][j][1] << " " << imp.trajectories[i][j][2] << endl;
+				double lon, lat;
+				CoordinateTransform::RlatRlonToLatLon(imp.trajectories[i][j][1], imp.trajectories[i][j][0], lat, lon);
+				cout << "  point " << j << ": " << lon << " " << lat << " " << imp.trajectories[i][j][2] << endl;
+
 			}
 		}
 	}
