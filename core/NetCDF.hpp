@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "RegularGrid.hpp"
+#include "TrajectoryData.hpp"
 
 class NetCDF
 {
@@ -123,6 +124,10 @@ public:
 	static bool ImportFloatArray(const std::string& path, const std::string& varname, std::vector<float>& output);
 
 	// read/write trajectories
+	// Lagranto format
+	static bool WriteTrajectoryData(const std::string& path, const TrajectoryData& td);
+	static bool ReadTrajectoryData(const std::string& path, TrajectoryData& td);
+	// my old format
 	static bool WritePaths(const std::string& path, const std::vector<std::vector<Vec3f>>& paths);
 	static bool ReadPaths(const std::string& path, std::vector<std::vector<Vec3f>>& paths);
 };
