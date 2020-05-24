@@ -528,65 +528,52 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 	int ntra_id, ntim_id;
 	if (status = nc_def_dim(ncid, "ntra", td.num_trajectories, &ntra_id)) return false;
 	if (status = nc_def_dim(ncid, "ntim", td.points_per_trajectory, &ntim_id)) return false;
-	int fieldIDs[] = { ntra_id, ntim_id };
+	//int dim_ids[] = { ntra_id, ntim_id }; TODO made a mess here
+	int dim_ids[] = { ntim_id, ntra_id };
 
 	printf("Writing variables\n");
 	// variables
 	int time_id;
 	std::vector<int> var_id(td.varnames.size());
-	if (nc_def_var(ncid, "time", NC_DOUBLE, 2, fieldIDs, &time_id)) return false;
+	if (nc_def_var(ncid, "time", NC_DOUBLE, 2, dim_ids, &time_id)) return false;
 	printf("  time there\n");
 	for (int i = 0; i < td.varnames.size(); ++i) {
-		if (nc_def_var(ncid, td.varnames[i].c_str(), NC_FLOAT, 2, fieldIDs, &var_id[i])) return false;
+		if (nc_def_var(ncid, td.varnames[i].c_str(), NC_FLOAT, 2, dim_ids, &var_id[i])) return false;
 	}
 
 	printf("Writing attributes\n");
 	// attributes
-	int global_id = -1;//TODO is this how you write global attributes?
-	if (status = nc_put_att_int(ncid, global_id, "ref_year", NC_INT, 1, &td.ref_year)) return false;
-	if (status = nc_put_att_int(ncid, global_id, "ref_month", NC_INT, 1, &td.ref_month)) return false;
-	if (status = nc_put_att_int(ncid, global_id, "ref_day", NC_INT, 1, &td.ref_day)) return false;
-	if (status = nc_put_att_int(ncid, global_id, "ref_hour", NC_INT, 1, &td.ref_hour)) return false;
-	if (status = nc_put_att_int(ncid, global_id, "ref_min", NC_INT, 1, &td.ref_min)) return false;
+	if (status = nc_put_att_int(ncid, NC_GLOBAL, "ref_year", NC_INT, 1, &td.ref_year)) return false;
+	if (status = nc_put_att_int(ncid, NC_GLOBAL, "ref_month", NC_INT, 1, &td.ref_month)) return false;
+	if (status = nc_put_att_int(ncid, NC_GLOBAL, "ref_day", NC_INT, 1, &td.ref_day)) return false;
+	if (status = nc_put_att_int(ncid, NC_GLOBAL, "ref_hour", NC_INT, 1, &td.ref_hour)) return false;
+	if (status = nc_put_att_int(ncid, NC_GLOBAL, "ref_min", NC_INT, 1, &td.ref_min)) return false;
 	int duration = floor(td.time_end - td.time_begin) / 60;//TODO duration in minutes?
-	if (status = nc_put_att_int(ncid, global_id, "duration", NC_INT, 1, &duration)) return false;
-	if (status = nc_put_att_float(ncid, global_id, "pollon", NC_FLOAT, 1, &td.pole_lon)) return false;
-	if (status = nc_put_att_float(ncid, global_id, "pollat", NC_FLOAT, 1, &td.pole_lat)) return false;
+	if (status = nc_put_att_int(ncid, NC_GLOBAL, "duration", NC_INT, 1, &duration)) return false;
+	if (status = nc_put_att_float(ncid, NC_GLOBAL, "pollon", NC_FLOAT, 1, &td.pole_lon)) return false;
+	if (status = nc_put_att_float(ncid, NC_GLOBAL, "pollat", NC_FLOAT, 1, &td.pole_lat)) return false;
+
+	// start writing
+	if (nc_enddef(ncid)) return false;
 	
-	/*
-TODO
-data:
-	varname:
-		(tra0, t0), (tra1, t0), ..., (tran, t0),
-		(tra0, t1), (tra1, t1), ..., (tran, t1),
-		...
-		(tra0, tT), (tra1, tT), ..., (tran, tT),
-	(note: time has format hh.mm)
-*/
-	printf("Writing data\n");
-	size_t startp[] = { 0, 0 };
-	size_t countp[] = { td.num_trajectories, td.points_per_trajectory };
+	// TODO these loops are probably inefficient, use nc_put_vara
 	for (int i = 0; i < td.points_per_trajectory; ++i) {
-		printf(("i " + std::to_string(i) + "\n").c_str());
 		double time = 0;//TODO format hh.mm
 		for (int j = 0; j < td.num_trajectories; ++j) {
-			printf(("  j " + std::to_string(j) + "\n").c_str());
-			if (nc_put_vara_double(ncid, time_id, startp, countp, &time)) return false;
+			size_t indexp[] = { i, j };
+			printf(("write  point " + std::to_string(i) + " of path " + std::to_string(j) + "\n").c_str());
+			if (nc_put_var1_double(ncid, time_id, indexp, &time)) return false;
 		}
 	}
 	for (int i = 0; i < td.varnames.size(); ++i) {
-		//TODO write data
-	}
-	/*up there
-	for (int i = 0; i < nPaths; ++i)
-		for (int j = 0; j < pathLength; ++j) {
-			if (nc_put_vara_float(ncid, xID, startp, countp, &pathsData[0])) return false;
-			if (nc_put_vara_float(ncid, yID, startp, countp, &pathsData[nPoints])) return false;
-			if (nc_put_vara_float(ncid, zID, startp, countp, &pathsData[2 * nPoints])) return false;
+		for (int j = 0; j < td.points_per_trajectory; ++j) {
+			for (int k = 0; k < td.num_trajectories; ++k) {
+				size_t indexp[] = { j, k };
+				if (nc_put_var1_float(ncid, var_id[i], indexp, &td.data[i][k*td.points_per_trajectory+j])) return false;
+			}
 		}
-	*/
+	}
 
-	printf("actually, forget it\n");
 	if (status = nc_close(ncid)) return false;
 
 	return true;

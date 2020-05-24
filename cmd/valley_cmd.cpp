@@ -27,6 +27,16 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
+		TrajectoryData td;
+		td.num_trajectories = 1;
+		td.points_per_trajectory = 42;
+		td.varnames.clear(); td.varnames.push_back("variabul");
+		td.data.resize(td.num_trajectories);
+		td.data[0].resize(td.points_per_trajectory * td.num_trajectories);
+		for (int i = 0; i < td.points_per_trajectory; ++i) td.data[0][i] = i;
+		if (NetCDF::WriteTrajectoryData("somewhere.nc", td)) cout << "good\n";
+		else cout << "NOT GOOD\n";
+		return 0;
 		double rlonmin = -6, rlonmax = 4, rlatmin = -4, rlatmax = 3;
 		int ii = 5, jj = 5;
 		for (int i = 0; i < ii; ++i) {
@@ -263,6 +273,7 @@ int main(int argc, char *argv[])
 				for (int k = 0; k < paths_dim[2]; ++k) {
 					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
 					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing[0], tracing_bounds[2] + j * spacing[1], tracing_bounds[4] + k * spacing[2]);
+					cout << "00.00 " << position[0] << " " << position[1] << " " << position[2] << endl;
 					double lat = position[1];
 					double lon = position[0];
 					double rlat, rlon;
@@ -270,7 +281,6 @@ int main(int argc, char *argv[])
 					position[0] = rlon; position[1] = rlat;
 					imp.trajectories[path].resize(1);
 					imp.trajectories[path][0] = position;
-					cout << "  startpt " << i << j << k << ": " << position[0] << " " << position[1] << " " << position[2] << endl;
 				}
 			}
 		}
