@@ -28,13 +28,20 @@ int main(int argc, char *argv[])
 	cin >> input;
 	if (input == 3) {
 		TrajectoryData td;
-		td.num_trajectories = 1;
+		td.num_trajectories = 3;
 		td.points_per_trajectory = 42;
-		td.varnames.clear(); td.varnames.push_back("variabul");
+		td.time_begin = 0; td.time_end = 7777;
+		td.varnames.clear();
+		td.varnames.push_back("variabul");
 		td.data.resize(td.num_trajectories);
 		td.data[0].resize(td.points_per_trajectory * td.num_trajectories);
-		for (int i = 0; i < td.points_per_trajectory; ++i) td.data[0][i] = i;
-		if (NetCDF::WriteTrajectoryData("somewhere.nc", td)) cout << "good\n";
+		for (int i = 0; i < td.points_per_trajectory* td.num_trajectories; ++i) td.data[0][i] = i;
+		if (NetCDF::WriteTrajectoryData("somewhere.nc", td)) {
+			cout << "good\n";
+
+			TrajectoryData td2;
+			if (NetCDF::ReadTrajectoryData("somewhere.nc", td2)) cout << "everything is fine\n";
+		}
 		else cout << "NOT GOOD\n";
 		return 0;
 		double rlonmin = -6, rlonmax = 4, rlatmin = -4, rlatmax = 3;

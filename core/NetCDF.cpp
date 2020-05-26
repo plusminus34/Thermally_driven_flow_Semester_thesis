@@ -548,7 +548,7 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 	if (status = nc_put_att_int(ncid, NC_GLOBAL, "ref_day", NC_INT, 1, &td.ref_day)) return false;
 	if (status = nc_put_att_int(ncid, NC_GLOBAL, "ref_hour", NC_INT, 1, &td.ref_hour)) return false;
 	if (status = nc_put_att_int(ncid, NC_GLOBAL, "ref_min", NC_INT, 1, &td.ref_min)) return false;
-	int duration = floor(td.time_end - td.time_begin) / 60;//TODO duration in minutes?
+	int duration = floor((td.time_end - td.time_begin) / 60);//TODO duration in minutes?
 	if (status = nc_put_att_int(ncid, NC_GLOBAL, "duration", NC_INT, 1, &duration)) return false;
 	if (status = nc_put_att_float(ncid, NC_GLOBAL, "pollon", NC_FLOAT, 1, &td.pole_lon)) return false;
 	if (status = nc_put_att_float(ncid, NC_GLOBAL, "pollat", NC_FLOAT, 1, &td.pole_lat)) return false;
@@ -557,11 +557,14 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 	if (nc_enddef(ncid)) return false;
 	
 	// TODO these loops are probably inefficient, use nc_put_vara
-	for (int i = 0; i < td.points_per_trajectory; ++i) {
-		double time = 0;//TODO format hh.mm
+	float dt = (td.time_end - td.time_begin) / (td.points_per_trajectory - 1);
+	for (int i = 0; i < td.points_per_trajectory; ++i){
+		float t = td.time_begin + i * dt;
+		int hours = floor(t / 3600);
+		int minutes = floor((t - 3600 * hours) / 60);
+		double time = hours + 0.01*minutes;// format hh.mm
 		for (int j = 0; j < td.num_trajectories; ++j) {
 			size_t indexp[] = { i, j };
-			printf(("write  point " + std::to_string(i) + " of path " + std::to_string(j) + "\n").c_str());
 			if (nc_put_var1_double(ncid, time_id, indexp, &time)) return false;
 		}
 	}
@@ -581,5 +584,59 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 
 bool NetCDF::ReadTrajectoryData(const std::string & path, TrajectoryData & td)
 {
-	return false;
+	NetCDF::Info info;
+	if (!ReadInfo(path, info)) return false;
+
+	printf("Reading info\n");
+	td.num_trajectories = info.GetDimensionByName("ntra").GetLength();
+	td.points_per_trajectory = info.GetDimensionByName("ntim").GetLength();
+
+	int ncid;
+	int status;
+	size_t indexp[] = { 0,0 };
+	if (status = nc_open(path.c_str(), NC_NOWRITE, &ncid)) return false;
+
+	int time_id = info.GetVariableByName("time").GetID(); assert(time_id == 0);
+
+	printf("Reading attributes\n");
+	//assumption: beginning and end time is constant across trajectories
+	if (status = nc_get_var1_float(ncid, time_id, indexp, &td.time_begin)) return false;
+	indexp[0] = td.points_per_trajectory - 1;
+	if (status = nc_get_var1_float(ncid, time_id, indexp, &td.time_end)) return false;
+
+	printf("Reading more attributes\n");
+	if (status = nc_get_att_int(ncid, NC_GLOBAL, "ref_year", &td.ref_year)) return false;
+	if (status = nc_get_att_int(ncid, NC_GLOBAL, "ref_month", &td.ref_month)) return false;
+	if (status = nc_get_att_int(ncid, NC_GLOBAL, "ref_day", &td.ref_day)) return false;
+	if (status = nc_get_att_int(ncid, NC_GLOBAL, "ref_hour", &td.ref_hour)) return false;
+	if (status = nc_get_att_int(ncid, NC_GLOBAL, "ref_min", &td.ref_min)) return false;
+	if (status = nc_get_att_float(ncid, NC_GLOBAL, "pollon", &td.pole_lon)) return false;
+	if (status = nc_get_att_float(ncid, NC_GLOBAL, "pollat", &td.pole_lat)) return false;
+
+	printf("Reading variables\n");
+	td.varnames.resize(info.NumVariables - 1);
+	td.data.resize(td.varnames.size());
+	printf((" varnames " + std::to_string(td.varnames.size()) + "   data " + std::to_string(td.data.size()) + "\n").c_str());
+	for (int i = 0; i < info.NumVariables - 1; ++i) {
+		printf((" i " + std::to_string(i) + " and there are " + std::to_string(info.Variables.size()) + " vars\n").c_str());
+		td.varnames[i] = info.Variables[i+1].GetName();//TODO...
+		printf(("Reading data for " + td.varnames[i] + "\n").c_str());
+		int var_id = info.Variables[i+1].GetID();
+		td.data[i].resize(td.num_trajectories*td.points_per_trajectory);
+		float* rawdata = td.data[i].data();
+		if (status = nc_get_var_float(ncid, var_id, rawdata)) return false;
+		printf(("Read variable " + td.varnames[i] + "\n").c_str());
+		for (int j = 0; j < td.points_per_trajectory; ++j) {
+			printf("\n");
+			for (int k = 0; k < td.num_trajectories; ++k) {
+				printf(" ");
+				printf(std::to_string(td.data[i][j*td.num_trajectories + k]).c_str());
+			}
+		}
+	}
+
+
+	if (status = nc_close(ncid)) return false;
+
+	return true;
 }

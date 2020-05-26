@@ -9,7 +9,7 @@ struct TrajectoryData {
 	// info about trajectories
 	int num_trajectories;
 	int points_per_trajectory;
-	float time_begin, time_end;
+	float time_begin, time_end;// in seconds
 
 	// info that is constant across my input data
 	int ref_year = 2016;
@@ -24,6 +24,13 @@ struct TrajectoryData {
 	std::vector<std::string> varnames;
 
 	// the data itself, stored as one array per variable
+	/* Format:
+	data[i] for variable [i]:
+		(t0,p0), (t0,p1), ..., (t0,pN),
+		(t1,p0), (t1,p1), ..., (t1,pN),
+		...
+		(tT,p0), (tT,p1), ..., (tT,pN)
+	*/
 	std::vector<std::vector<float>> data;
 
 	int get_var_id(std::string varname) const {
