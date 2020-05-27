@@ -528,7 +528,6 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 	int ntra_id, ntim_id;
 	if (status = nc_def_dim(ncid, "ntra", td.num_trajectories, &ntra_id)) return false;
 	if (status = nc_def_dim(ncid, "ntim", td.points_per_trajectory, &ntim_id)) return false;
-	//int dim_ids[] = { ntra_id, ntim_id }; TODO made a mess here
 	int dim_ids[] = { ntim_id, ntra_id };
 
 	printf("Writing variables\n");
@@ -558,7 +557,7 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 	
 	// TODO these loops are probably inefficient, use nc_put_vara
 	float dt = (td.time_end - td.time_begin) / (td.points_per_trajectory - 1);
-	for (int i = 0; i < td.points_per_trajectory; ++i){
+	for (int i = 0; i < td.points_per_trajectory; ++i) {
 		float t = td.time_begin + i * dt;
 		int hours = floor(t / 3600);
 		int minutes = floor((t - 3600 * hours) / 60);
@@ -572,7 +571,7 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 		for (int j = 0; j < td.points_per_trajectory; ++j) {
 			for (int k = 0; k < td.num_trajectories; ++k) {
 				size_t indexp[] = { j, k };
-				if (nc_put_var1_float(ncid, var_id[i], indexp, &td.data[i][k*td.points_per_trajectory+j])) return false;
+				if (nc_put_var1_float(ncid, var_id[i], indexp, &td.data[i][k + j * td.num_trajectories])) return false;
 			}
 		}
 	}
@@ -587,7 +586,7 @@ bool NetCDF::ReadTrajectoryData(const std::string & path, TrajectoryData & td)
 	NetCDF::Info info;
 	if (!ReadInfo(path, info)) return false;
 
-	printf("Reading info\n");
+	//printf("Reading info\n");
 	td.num_trajectories = info.GetDimensionByName("ntra").GetLength();
 	td.points_per_trajectory = info.GetDimensionByName("ntim").GetLength();
 
@@ -598,13 +597,13 @@ bool NetCDF::ReadTrajectoryData(const std::string & path, TrajectoryData & td)
 
 	int time_id = info.GetVariableByName("time").GetID(); assert(time_id == 0);
 
-	printf("Reading attributes\n");
+	//printf("Reading attributes\n");
 	//assumption: beginning and end time is constant across trajectories
 	if (status = nc_get_var1_float(ncid, time_id, indexp, &td.time_begin)) return false;
 	indexp[0] = td.points_per_trajectory - 1;
 	if (status = nc_get_var1_float(ncid, time_id, indexp, &td.time_end)) return false;
 
-	printf("Reading more attributes\n");
+	//printf("Reading more attributes\n");
 	if (status = nc_get_att_int(ncid, NC_GLOBAL, "ref_year", &td.ref_year)) return false;
 	if (status = nc_get_att_int(ncid, NC_GLOBAL, "ref_month", &td.ref_month)) return false;
 	if (status = nc_get_att_int(ncid, NC_GLOBAL, "ref_day", &td.ref_day)) return false;
@@ -613,18 +612,19 @@ bool NetCDF::ReadTrajectoryData(const std::string & path, TrajectoryData & td)
 	if (status = nc_get_att_float(ncid, NC_GLOBAL, "pollon", &td.pole_lon)) return false;
 	if (status = nc_get_att_float(ncid, NC_GLOBAL, "pollat", &td.pole_lat)) return false;
 
-	printf("Reading variables\n");
+	//printf("Reading variables\n");
 	td.varnames.resize(info.NumVariables - 1);
 	td.data.resize(td.varnames.size());
-	printf((" varnames " + std::to_string(td.varnames.size()) + "   data " + std::to_string(td.data.size()) + "\n").c_str());
+	//printf((" varnames " + std::to_string(td.varnames.size()) + "   data " + std::to_string(td.data.size()) + "\n").c_str());
 	for (int i = 0; i < info.NumVariables - 1; ++i) {
-		printf((" i " + std::to_string(i) + " and there are " + std::to_string(info.Variables.size()) + " vars\n").c_str());
-		td.varnames[i] = info.Variables[i+1].GetName();//TODO...
-		printf(("Reading data for " + td.varnames[i] + "\n").c_str());
+		//printf((" i " + std::to_string(i) + " and there are " + std::to_string(info.Variables.size()) + " vars\n").c_str());
+		td.varnames[i] = info.Variables[i+1].GetName();
+		//printf(("Reading data for " + td.varnames[i] + "\n").c_str());
 		int var_id = info.Variables[i+1].GetID();
 		td.data[i].resize(td.num_trajectories*td.points_per_trajectory);
 		float* rawdata = td.data[i].data();
 		if (status = nc_get_var_float(ncid, var_id, rawdata)) return false;
+		/*
 		printf(("Read variable " + td.varnames[i] + "\n").c_str());
 		for (int j = 0; j < td.points_per_trajectory; ++j) {
 			printf("\n");
@@ -633,6 +633,7 @@ bool NetCDF::ReadTrajectoryData(const std::string & path, TrajectoryData & td)
 				printf(std::to_string(td.data[i][j*td.num_trajectories + k]).c_str());
 			}
 		}
+		*/
 	}
 
 

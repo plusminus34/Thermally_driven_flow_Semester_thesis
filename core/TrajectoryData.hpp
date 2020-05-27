@@ -39,7 +39,7 @@ struct TrajectoryData {
 		return -1;
 	}
 
-	int get_value(int var_id, int trajectory_id, int point_i) const {
-		return data[var_id][trajectory_id*points_per_trajectory + point_i];
+	float get_value(int var_id, int trajectory_id, int point_i) const {
+		return data[var_id][trajectory_id + point_i * num_trajectories];
 	}
 };
