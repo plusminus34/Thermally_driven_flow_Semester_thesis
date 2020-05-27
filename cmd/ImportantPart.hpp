@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "core/ParticleTracer.hpp"
+#include "core/TrajectoryData.hpp"
 
 class ImportantPart
 {
@@ -13,6 +14,7 @@ public:
 
 	// Where trajectories are computed
 	void doStuff();
+	void computeTrajectoryData(TrajectoryData& td);
 
 	// Set parameters
 	// Start and end time of tracing

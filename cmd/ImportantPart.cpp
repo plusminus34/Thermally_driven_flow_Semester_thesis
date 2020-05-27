@@ -49,7 +49,20 @@ void ImportantPart::setNumberOfTimesteps(int num_steps) {
 }
 
 void ImportantPart::doStuff() {
+	std::cout << "doStuff is deprecated, use computeTrajectoryData instead\n";
+}
+
+// Computes the data of td
+// Assumes that the other members of td have been initialized
+void ImportantPart::computeTrajectoryData(TrajectoryData& td)
+{
 	//--------------------- Initialization
+	// see that data has correct sizes
+	td.data.resize(td.varnames.size());
+	for (int i = 0; i < td.varnames.size(); ++i) {
+		td.data[i].resize(td.num_trajectories*td.points_per_trajectory);
+	}
+
 	// name of the file containing constants (mainly HHL)
 	string constantsfile = basefilename + IntToDDHHMMSS(file_t0) + 'c' + fileending;
 
@@ -67,10 +80,9 @@ void ImportantPart::doStuff() {
 	// Yep, that's a particle tracer
 	ParticleTracer<Vec3f, 3> tracer;
 
-	// Helping: store a 1d-array mapping level1 to height (TODO is this correct?)
-	cout << "Will import HHL from " << constantsfile << endl;
+	// Helping: Map of level to acutal height in meters
 	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
-	
+
 	// setup ringbuffer
 	int file_i = 0;
 	vector<RlonRlatHField*> ringbuffer(3);
@@ -79,9 +91,9 @@ void ImportantPart::doStuff() {
 	ringbuffer[2] = new RlonRlatHField(UVWFromNCFile(files[2]), hhl);
 	int ri0 = 0, ri1 = 1, ri2 = 2;
 
-	// store a list of trajectories that haven't left the bounding box
-	std::vector<std::vector<Vec3f>*> active_paths(trajectories.size());
-	for (int i = 0; i < trajectories.size(); ++i) active_paths[i] = &trajectories[i];
+	// store current position of each trajectory
+	vector<Vec3f> position(td.num_trajectories);
+	for (int i = 0; i < position.size(); ++i) position[i] = trajectories[i][0];
 
 	// domain is relevant for checking
 	const BoundingBox3d bb = hhl->GetDomain();//TODO that's probably incorrect
@@ -89,16 +101,23 @@ void ImportantPart::doStuff() {
 	// and an extra variable to mark the final part where only 2 fields are used
 	bool finalPart = false;
 
-	// see that paths are of correct size
-	for (int i = 0; i < trajectories.size(); ++i) {
-		trajectories[i].resize(nSteps + 1);
+	// Figure out which variables are stored where
+	int rlon_id, rlat_id, z_id, lon_id, lat_id;
+	vector<int> other_vars;//TODO trace other variables
+	for (int i = 0; i < td.varnames.size(); ++i) {
+		if (td.varnames[i] == "rlon") rlon_id = i;
+		else if (td.varnames[i] == "rlat") rlat_id = i;
+		else if (td.varnames[i] == "z") z_id = i;
+		else if (td.varnames[i] == "lon") lon_id = i;
+		else if (td.varnames[i] == "lat") lat_id = i;
+		else other_vars.push_back(i);
 	}
 
 	//--------------------- Where particles are traced and paths filled
 	// compute trajectories
 	int step_i = 1;
-	for (double t = start_t; t < end_t; t += dt) {
-		cout << "time " << t << endl;
+	double lon, lat;
+	for (double t = td.time_begin; t <= td.time_end; t += dt) {
 		if (t >= file_t[file_i + 1]) {
 			delete ringbuffer[file_i % 3];
 			ri0 = ri1;
@@ -113,25 +132,26 @@ void ImportantPart::doStuff() {
 			ri2 = file_i % 3;
 			++file_i;
 		}
-		for (int i = 0; i < trajectories.size(); ++i) {
-			//cout << "pos_f goes from ";
-			Vec3f pos_f = trajectories[i][step_i - 1];
-			//cout << pos_f[0] << " " << pos_f[1] << " " << pos_f[2];
-			if(true){//if (bb_f.Contains(pos_f)) { TODO domain matters
+		for (int i = 0; i < td.num_trajectories; ++i) {
+			if (true) {//if (bb_f.Contains(position[i])) { TODO domain matters
 				if (!finalPart)
-					pos_f = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], pos_f, t, dt);
+					position[i] = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], position[i], t, dt);
 				else
-					pos_f = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], pos_f, t, dt);
+					position[i] = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], position[i], t, dt);
 			}
-			//cout << " to "<< pos_f[0] << " " << pos_f[1] << " " << pos_f[2]<<endl;
-			//trajectories[i].push_back(pos_f);
-			trajectories[i][step_i] = pos_f;
+			//TODO write td
+			td.val(rlon_id, i, step_i) = position[i][0];
+			td.val(rlat_id, i, step_i) = position[i][1];
+			td.val(z_id, i, step_i) = position[i][2];
+			CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
+			td.val(lon_id, i, step_i) = lon;
+			td.val(lat_id, i, step_i) = lat;
 		}
 		++step_i;
 	}
 	//--------------------- the end
 	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];
-	std::cout << "Paths are finished\n";
+	std::cout << "Trajectories have been computed\n";
 }
 
 void ImportantPart::helpWithStuff(RegVectorField3f* uvw)

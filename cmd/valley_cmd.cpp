@@ -29,20 +29,39 @@ int main(int argc, char *argv[])
 	if (input == 3) {
 		TrajectoryData td;
 		td.num_trajectories = 3;
-		td.points_per_trajectory = 42;
+		td.points_per_trajectory = 12;
 		td.time_begin = 0; td.time_end = 7777;
 		td.varnames.clear();
 		td.varnames.push_back("variabul");
 		td.data.resize(td.num_trajectories);
 		td.data[0].resize(td.points_per_trajectory * td.num_trajectories);
 		for (int i = 0; i < td.points_per_trajectory* td.num_trajectories; ++i) td.data[0][i] = i;
+		int vi = 0;
+		
+		cout << "td: " << td.num_trajectories << " trajectories of " << td.points_per_trajectory << " points\n";
+		for (int i = 0; i < td.points_per_trajectory; ++i) {
+			cout << "td path 0 var " << vi << " at pt " << i << ": " << td.get_value(vi, 0, i) << endl;
+		}
+		
+		TrajectoryData td2;
 		if (NetCDF::WriteTrajectoryData("somewhere.nc", td)) {
 			cout << "good\n";
 
-			TrajectoryData td2;
 			if (NetCDF::ReadTrajectoryData("somewhere.nc", td2)) cout << "everything is fine\n";
+			
+			cout << "td2: " << td2.num_trajectories << " trajectories of " << td2.points_per_trajectory << " points\n";
+			for (int i = 0; i < td2.points_per_trajectory; ++i) {
+				cout << "td2 path 0 var "<<vi<<" at pt " << i << ": " << td2.get_value(vi, 0, i) << endl;
+			}
+			
 		}
 		else cout << "NOT GOOD\n";
+		
+		if (NetCDF::ReadTrajectoryData("C:/Users/wiggerl/Documents/output/trajectory_mopts.nc", td2)) cout << "everything is fine\n";
+		vector<float> jo = td2.data[vi];
+		for (int i = 0; i < jo.size(); ++i)cout << " " << jo[i];
+		cout << endl;
+		
 		return 0;
 		double rlonmin = -6, rlonmax = 4, rlatmin = -4, rlatmax = 3;
 		int ii = 5, jj = 5;
@@ -246,11 +265,9 @@ int main(int argc, char *argv[])
 				*/
 			}
 			cout << "Input spacing between individual starting points  (Format: dx dy dz)> ";
-			cin >> spacing[0];
-			cin >> spacing[1];
-			cin >> spacing[2];
 			for (int i = 0; i < 3; ++i) {
-				paths_dim[i] = floor((tracing_bounds[2 * i + 1] - tracing_bounds[2 * i]) / spacing[i]);
+				cin >> spacing[i];
+				paths_dim[i] = floor((tracing_bounds[2 * i + 1] - tracing_bounds[2 * i]) / spacing[i]) + 1;
 				assert(paths_dim[i] > 0);
 			}
 			nPaths = paths_dim[0] * paths_dim[1] * paths_dim[2];
@@ -265,6 +282,13 @@ int main(int argc, char *argv[])
 		}
 
 		ImportantPart imp;
+
+		TrajectoryData td;
+		td.num_trajectories = nPaths;
+		td.points_per_trajectory = nSteps + 1;
+		td.time_begin = t0;
+		td.time_end = t1;
+		td.varnames = { "rlon", "rlat", "z", "lon", "lat" };
 
 		string basefile(argv[1]);
 		basefile = basefile.substr(0, basefile.size() - 11);
@@ -303,9 +327,9 @@ int main(int argc, char *argv[])
 		imp.helpWithStuff(field);
 		delete field;
 
-		imp.doStuff();
+		imp.computeTrajectoryData(td);
 
-		NetCDF::WritePaths("imp_paths.nc", imp.trajectories);
+		NetCDF::WriteTrajectoryData("imp_trajectory.nc", td);
 		for (int i = 0; i < imp.trajectories.size(); ++i) {
 			cout << "END: Path " << i << endl;
 			for (int j = 0; j < imp.trajectories[i].size(); ++j) {

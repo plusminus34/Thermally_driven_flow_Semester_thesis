@@ -4,7 +4,7 @@
 #include <string>
 #include "CoordinateTransform.hpp"
 
-// Struct for the kind of data
+// Struct for the kind of data we want as output
 struct TrajectoryData {
 	// info about trajectories
 	int num_trajectories;
@@ -40,6 +40,10 @@ struct TrajectoryData {
 	}
 
 	float get_value(int var_id, int trajectory_id, int point_i) const {
+		return data[var_id][trajectory_id + point_i * num_trajectories];
+	}
+
+	float& val(int var_id, int trajectory_id, int point_i) {
 		return data[var_id][trajectory_id + point_i * num_trajectories];
 	}
 };
