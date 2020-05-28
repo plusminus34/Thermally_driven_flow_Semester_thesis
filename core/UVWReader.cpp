@@ -101,7 +101,8 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 		CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
 		double dlon, dlat;
 		CoordinateTransform::degreeLengthsSimple(lat, dlat, dlon);
-		v[0] /= dlon;
+		if (dlon != 0)v[0] /= dlon;
+		else v[0] = 0;
 		v[1] /= dlat;
 		uvw->SetVertexDataAt(gridCoord, v);
 	}

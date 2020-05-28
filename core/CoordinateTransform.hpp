@@ -85,7 +85,7 @@ public:
 	}
 
 	static void degreeLengthsSimple(double lat, double& lat_length, double& lon_length) {
-		lat_length = 6367449;//*cos(0)
-		lon_length = lat_length * cos(lat);
+		lat_length = ZPIR18 * 6367449;//*cos(0)
+		lon_length = lat_length * cos(lat*ZPIR18);
 	}
 };
