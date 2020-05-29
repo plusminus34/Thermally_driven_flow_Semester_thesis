@@ -23,10 +23,10 @@ Vec3f RlonRlatHField::Sample(const Vec3d & coord) const
 	//cout << "Sample at "<<coord[0]<<" "<<coord[1]<<" "<<coord[2]<<endl;
 	//if(w0<0||w0>1||w1<0||w1>1)
 	//cout << "  w0,w1 = " << w0 << "," << w1 << endl;
-	if (w0 < 0) w0 = 0;
-	else if (w0 > 1) w0 = 1;
-	if (w1 < 0) w1 = 0;
-	else if (w1 > 1) w1 = 1;
+	if (w0 < 0) { cout << "ERROR: w0 = " << w0 << " < 0" << endl; w0 = 0; }
+	else if (w0 > 1) { cout << "ERROR: w0 = " << w0 << " > 1" << endl; w0 = 1; }
+	if (w1 < 0) { cout << "ERROR: w1 = " << w1 << " < 0" << endl; w1 = 0; }
+	else if (w1 > 1) { cout << "ERROR: w1 = " << w1 << " > 1" << endl; w1 = 1; }
 	//cout << "RlonRlat sample 2 for tmp0\n";
 	Vec3f tmp0 = SampleXYiHd(rlon_i, rlat_i, coord[2]) * (1 - w0) + SampleXYiHd(rlon_i + 1, rlat_i, coord[2]) * w0;
 	//cout << "RlonRlat sample 2 for tmp1\n";
@@ -63,8 +63,8 @@ Vec3f RlonRlatHField::SampleXYiHd(int rlon_i, int rlat_i, double h) const
 	//binary search at rlon_i,rlat_i to find level for h
 	int lower = 0;
 	int upper = lvl_top;
-	if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset)) return Vec3f(0,0,0);
-	if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset)) return Vec3f(0,0,0);
+	if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset)) { cout <<h<< " too high\n"; return Vec3f(0, 0, 0); }
+	if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset)) { cout << h << " too low\n"; return Vec3f(0, 0, 0); }
 
 	while (upper > lower + 1) {
 		int half = (upper + lower) / 2;
@@ -75,11 +75,9 @@ Vec3f RlonRlatHField::SampleXYiHd(int rlon_i, int rlat_i, double h) const
 	}
 	const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset);
 	const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset);
-	double lvl = (h - h0) / (h1 - h0);
-	//cout << "found lvl " << lvl << " between " << lower << " and " << upper << endl;
 	// and then sample uvw
-	Vec3d samplePoint = uvw->GetCoordAt(Vec3i(rlon_i, rlat_i, 0));
-	samplePoint[2] = lvl;
-	//cout << "samplePoint is " << samplePoint[0] << " " << samplePoint[1] << " " << samplePoint[2] << endl;
-	return uvw->Sample(samplePoint);
+	float w = (h - h0) / (h1 - h0);
+	Vec3i smp0(rlon_i, rlat_i, lower);
+	Vec3i smp1(rlon_i, rlat_i, upper);
+	return uvw->GetVertexDataAt(smp0)*(1 - w) + uvw->GetVertexDataAt(smp1)*w;
 }
