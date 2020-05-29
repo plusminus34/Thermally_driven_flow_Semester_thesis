@@ -63,8 +63,8 @@ Vec3f RlonRlatHField::SampleXYiHd(int rlon_i, int rlat_i, double h) const
 	//binary search at rlon_i,rlat_i to find level for h
 	int lower = 0;
 	int upper = lvl_top;
-	if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset)) { cout <<h<< " too high\n"; return Vec3f(0, 0, 0); }
-	if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset)) { cout << h << " too low\n"; return Vec3f(0, 0, 0); }
+	if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset)) { return Vec3f(0, 0, 0); }
+	if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset)) { return Vec3f(0, 0, 0); }
 
 	while (upper > lower + 1) {
 		int half = (upper + lower) / 2;
@@ -76,8 +76,11 @@ Vec3f RlonRlatHField::SampleXYiHd(int rlon_i, int rlat_i, double h) const
 	const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset);
 	const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset);
 	// and then sample uvw
-	float w = (h - h0) / (h1 - h0);
+	float alpha = (h - h0) / (h1 - h0);
 	Vec3i smp0(rlon_i, rlat_i, lower);
 	Vec3i smp1(rlon_i, rlat_i, upper);
-	return uvw->GetVertexDataAt(smp0)*(1 - w) + uvw->GetVertexDataAt(smp1)*w;
+	Vec3f res(0, 0, 0);
+	if (lower > 0) res += uvw->GetVertexDataAt(smp0)*(1 - alpha);
+	if (upper < uvw->GetResolution()[2]) res += uvw->GetVertexDataAt(smp1)*alpha;
+	return res;
 }
