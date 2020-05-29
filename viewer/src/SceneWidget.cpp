@@ -19,6 +19,8 @@
 #include <vtkXMLImageDataReader.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
+#include <vtkXMLPolyDataWriter.h>
+#include <vtkXMLPolyDataReader.h>
 
 //copypasted(mostly) from Exercise 4
 // creates an actor that draws a line in a given color
@@ -95,48 +97,96 @@ void SceneWidget::CreateTestScene()
 	const double bb_size = 7.0;
 
 	// display surface
-	std::string constantsfile = "../../../lfff00000000c.nc";
-	RegScalarField2f* hsurf = NetCDF::ImportScalarField2f(constantsfile, "HSURF", "rlat", "rlon");
-	vtkSmartPointer<vtkPoints> hfield_points = vtkSmartPointer<vtkPoints>::New();
-	for (int i = 0; i < hsurf->GetData().size(); ++i) {
-		Vec2i gridCoord = hsurf->GetGridCoord(i);
-		Vec2d coord = hsurf->GetCoordAt(gridCoord);
-		hfield_points->InsertNextPoint(coord[1], coord[0], hsurf->GetData()[i]);
+	vtkNew<vtkPolyDataMapper> landscapeMapper;
+	if (false) {// TODO check if file exists
+		std::string constantsfile = "../../../lfff00000000c.nc";
+		vtkSmartPointer<vtkPoints> hfield_points = vtkSmartPointer<vtkPoints>::New();
+		RegScalarField3f* hsurf = NetCDF::ImportScalarField3f(constantsfile, "HSURF", "rlon", "rlat", "time");
+		for (int i = 0; i < hsurf->GetData().size(); ++i) {
+			Vec2i gridCoord = hsurf->GetGridCoord(i);
+			Vec3d coord = hsurf->GetCoordAt(gridCoord);
+			double lon, lat;
+			CoordinateTransform::RlatRlonToLatLon(coord[0], coord[1], lat, lon);
+			hfield_points->InsertNextPoint(lon, lat, hsurf->GetData()[i] * ZSCALE);
+		}
+		delete hsurf;
+		vtkSmartPointer<vtkPolyData> hfield_polydata = vtkSmartPointer<vtkPolyData>::New();
+		hfield_polydata->SetPoints(hfield_points);
+		vtkSmartPointer<vtkDelaunay2D> delaunay = vtkSmartPointer<vtkDelaunay2D>::New();
+		delaunay->SetInputData(hfield_polydata);
+		vtkSmartPointer<vtkPolyData> landscape = delaunay->GetOutput();
+		delaunay->Update();
+		landscapeMapper->SetInputData(landscape);
+		// write it down
+		vtkNew<vtkXMLPolyDataWriter> landscapeWriter;
+		landscapeWriter->SetFileName("landscape.vtp");
+		landscapeWriter->SetInputData(landscape);
+		landscapeWriter->Write();
 	}
-	vtkSmartPointer<vtkPolyData> hfield_polydata = vtkSmartPointer<vtkPolyData>::New();
-	hfield_polydata->SetPoints(hfield_points);
-	vtkSmartPointer<vtkDelaunay2D> delaunay = vtkSmartPointer<vtkDelaunay2D>::New();
-	delaunay->SetInputData(hfield_polydata);
-	vtkSmartPointer<vtkPolyData> landscape = delaunay->GetOutput();
-	delaunay->Update();// TODO this takes a while
-	delete hsurf;
+	else {
+		vtkNew<vtkXMLPolyDataReader> landscapeReader;
+		landscapeReader->SetFileName("landscape.vtp");
+		landscapeReader->Update();
+		landscapeMapper->SetInputConnection(landscapeReader->GetOutputPort());
+	}
+	vtkNew<vtkActor> landscapeActor;
+	landscapeActor->SetMapper(landscapeMapper);
 	
+	/*
 	//Read UVW and convert into RegVectorfield
 	vtkNew<vtkXMLImageDataReader> imageReader;
 	std::string filename = "../cmd/UVW.vti";
-	cout << "Reading file " << filename << endl;
 	imageReader->SetFileName(filename.c_str());
 	imageReader->Update();
 	vtkSmartPointer<vtkImageData> imageData = imageReader->GetOutput();
-	cout << "Got imageData\n";
 	int* dims = imageData->GetDimensions();
-	cout << "Dimensions: " << dims[0] << " x " << dims[1] << " x " << dims[2] << endl;
 	int num_components = imageData->GetNumberOfScalarComponents();
-	cout << "Number of scalar components: " << num_components << endl;
 	double* bounds = imageData->GetBounds();
-	cout << "Bounds: " << bounds[0] << " - " << bounds[1] << "\t" << bounds[2] << " x " << bounds[3] << "\t" << bounds[4] << " x " << bounds[5] << endl;
 	Vec3f midpoint(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[2] + bounds[3]), 0.5*(bounds[4] + bounds[5]));
+	*/
+	
+	string file_1 = "../../../outputs/lag_trajectory_compare_2.nc";
+	string file_2 = "../../../outputs/imp_trajectory_compare_2.nc";
+	
+	TrajectoryData td;
+	NetCDF::ReadTrajectoryData(file_1, td);
+	assert(td.num_trajectories > 0);
+	assert(td.points_per_trajectory > 0);
+	int x_id = td.get_var_id("lon");
+	int y_id = td.get_var_id("lat");
+	int z_id = td.get_var_id("z");
+	if (x_id < 0 || y_id < 0 || z_id < 0) return;
+	vector<vector<Vec3f>> paths(td.num_trajectories);
+	vector<Vec3f> pathColors(paths.size());
+	for (int i = 0; i < paths.size(); ++i) {
+		paths[i].resize(td.points_per_trajectory);
+		for (int j = 0; j < paths[i].size(); ++j) {
+			paths[i][j] = Vec3f(td.get_value(x_id, i, j), td.get_value(y_id, i, j), td.get_value(z_id, i, j)*ZSCALE);
+		}
+		pathColors[i] = Vec3f(1 - ((float)i / paths.size()), 1, 1);
+	}
 
-	vector<vector<Vec3f>> paths;
-	NetCDF::ReadPaths("../cmd/imp_paths_first.nc", paths);
-	int nPaths = paths.size();
-	std::vector<Vec3f> pathColors(nPaths);
-	for (int i = 0; i < nPaths; ++i) {
-		pathColors[i] = Vec3f(1 - ((float)i / nPaths), 1, 1);
+	TrajectoryData td2;
+	NetCDF::ReadTrajectoryData(file_2, td2);
+	assert(td2.num_trajectories > 0);
+	assert(td2.points_per_trajectory > 0);
+	x_id = td2.get_var_id("lon");
+	y_id = td2.get_var_id("lat");
+	z_id = td2.get_var_id("z");
+	if (x_id < 0 || y_id < 0 || z_id < 0) return;
+	vector<vector<Vec3f>> paths2(td2.num_trajectories);
+	vector<Vec3f> pathColors2(paths2.size());
+	for (int i = 0; i < paths2.size(); ++i) {
+		paths2[i].resize(td2.points_per_trajectory);
+		for (int j = 0; j < paths2[i].size(); ++j) {
+			paths2[i][j] = Vec3f(td2.get_value(x_id, i, j), td2.get_value(y_id, i, j), td2.get_value(z_id, i, j)*ZSCALE);
+		}
+		pathColors2[i] = Vec3f(1, 1 - ((float)i / paths2.size()), 0);
 	}
 
 	vtkNew<vtkNamedColors> colors;
 
+	/*
 	vtkNew<vtkSphereSource> sphere;
 	//sphere->SetRadius(bb_size);
 	//sphere->SetRadius(bounds[1] - bounds[0]);
@@ -148,22 +198,21 @@ void SceneWidget::CreateTestScene()
 	outlineMapper->SetInputConnection(outline->GetOutputPort());
 	vtkNew<vtkActor> outlineActor;
 	outlineActor->SetMapper(outlineMapper);
-	double scale[] = { bounds[1] - bounds[0], bounds[3] - bounds[2], (bounds[5] - bounds[4]) };
+	double scale[] = { bounds[1] - bounds[0], bounds[3] - bounds[2], (bounds[5] - bounds[4])*ZSCALE };
 	outlineActor->SetScale(scale);
-	outlineActor->SetPosition(midpoint[0], midpoint[1], midpoint[2]);
-
-	vtkNew<vtkPolyDataMapper> landscapeMapper;
-	landscapeMapper->SetInputData(landscape);
-	vtkNew<vtkActor> landscapeActor;
-	landscapeActor->SetMapper(landscapeMapper);
+	outlineActor->SetPosition(midpoint[0], midpoint[1], midpoint[2] * ZSCALE);
+	*/
 
 	vtkNew<vtkRenderer> renderer;
 	renderer->SetBackground(colors->GetColor3d("SteelBlue").GetData());
 
 	renderer->AddActor(landscapeActor);
-	renderer->AddActor(outlineActor);
+	//renderer->AddActor(outlineActor);
 	for (int i = 0; i < paths.size(); ++i) {
 		renderer->AddActor(createLineActor(paths[i], pathColors[i]));
+	}
+	for (int i = 0; i < paths2.size(); ++i) {
+		renderer->AddActor(createLineActor(paths2[i], pathColors2[i]));
 	}
 
 	GetRenderWindow()->AddRenderer(renderer);
