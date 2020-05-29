@@ -330,16 +330,7 @@ int main(int argc, char *argv[])
 		imp.computeTrajectoryData(td);
 
 		NetCDF::WriteTrajectoryData("imp_trajectory.nc", td);
-		for (int i = 0; i < imp.trajectories.size(); ++i) {
-			cout << "END: Path " << i << endl;
-			for (int j = 0; j < imp.trajectories[i].size(); ++j) {
-				//cout << "  point " << j << ": " << imp.trajectories[i][j][0] << " " << imp.trajectories[i][j][1] << " " << imp.trajectories[i][j][2] << endl;
-				double lon, lat;
-				CoordinateTransform::RlatRlonToLatLon(imp.trajectories[i][j][1], imp.trajectories[i][j][0], lat, lon);
-				cout << "  point " << j << ": " << lon << " " << lat << " " << imp.trajectories[i][j][2] << endl;
-
-			}
-		}
+		cout << "Finished" << endl;
 	}
 	return 0;
 }
