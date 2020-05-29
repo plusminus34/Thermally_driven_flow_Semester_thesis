@@ -93,7 +93,9 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 
 	// store current position of each trajectory
 	vector<Vec3f> position(td.num_trajectories);
-	for (int i = 0; i < position.size(); ++i) position[i] = trajectories[i][0];
+	for (int i = 0; i < position.size(); ++i) {
+		position[i] = trajectories[i][0];
+	}
 
 	// domain is relevant for checking
 	const BoundingBox3d bb = hhl->GetDomain();//TODO that's probably incorrect
@@ -113,11 +115,22 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		else other_vars.push_back(i);
 	}
 
+	//oh, and write the initial points
+	double lon, lat;
+	for(int i=0;i<td.num_trajectories;++i){
+		td.val(rlon_id, i, 0) = position[i][0];
+		td.val(rlat_id, i, 0) = position[i][1];
+		td.val(z_id, i, 0) = position[i][2];
+		CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
+		td.val(lon_id, i, 0) = lon;
+		td.val(lat_id, i, 0) = lat;
+	}
+
 	//--------------------- Where particles are traced and paths filled
 	// compute trajectories
 	int step_i = 1;
-	double lon, lat;
-	for (double t = td.time_begin; t <= td.time_end; t += dt) {
+	for (double t = td.time_begin; t < td.time_end; t += dt) {
+		cout << "begin step " << step_i<<"   at time "<<t << endl;
 		if (t >= file_t[file_i + 1]) {
 			delete ringbuffer[file_i % 3];
 			ri0 = ri1;
@@ -134,10 +147,12 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		}
 		for (int i = 0; i < td.num_trajectories; ++i) {
 			if (true) {//if (bb_f.Contains(position[i])) { TODO domain matters
-				if (!finalPart)
+				if (!finalPart) {
 					position[i] = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], position[i], t, dt);
-				else
+				}
+				else {
 					position[i] = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], position[i], t, dt);
+				}
 			}
 			//TODO write td
 			td.val(rlon_id, i, step_i) = position[i][0];
