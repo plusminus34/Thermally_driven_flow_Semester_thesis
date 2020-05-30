@@ -299,12 +299,20 @@ int main(int argc, char *argv[])
 		// 2 0 0.3 2 2.3 -10 8000 0.1 0.1 300 11 1111 44 1
 
 		imp.trajectories.resize(nPaths);
+		cout << "Printing initial points\n";
+		string hhmm = "";
+		int h = td.time_begin / 3600;
+		int m = (td.time_begin - 3600 * h) / 60;
+		if (h < 10) hhmm.append("0");
+		hhmm.append(to_string(h) + ".");
+		if (m < 10) hhmm.append("0");
+		hhmm.append(to_string(m));
 		for (int i = 0; i < paths_dim[0]; ++i) {
 			for (int j = 0; j < paths_dim[1]; ++j) {
 				for (int k = 0; k < paths_dim[2]; ++k) {
 					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
 					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing[0], tracing_bounds[2] + j * spacing[1], tracing_bounds[4] + k * spacing[2]);
-					cout << "00.00 " << position[0] << " " << position[1] << " " << position[2] << endl;
+					cout << hhmm << " " << position[0] << " " << position[1] << " " << position[2] << endl;
 					double lat = position[1];
 					double lon = position[0];
 					double rlat, rlon;
