@@ -25,7 +25,7 @@ public:
 
 		// lon
 		double ZLAMPOL = ZPIR18 * POLE_LAMBDA;
-		const double tmpa = -SINPOL * cos(zlams) + COSPOL * sin(zphis);
+		const double tmpa = -SINPOL * cos(zlams) * cos(zphis) + COSPOL * sin(zphis);
 		const double tmpb = sin(zlams)*cos(zphis);
 		double ZARG1 = sin(ZLAMPOL) * tmpa - cos(ZLAMPOL)*tmpb;
 		double ZARG2 = cos(ZLAMPOL) * tmpa - sin(ZLAMPOL)*tmpb;
