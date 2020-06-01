@@ -85,10 +85,10 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 
 	// setup ringbuffer
 	int file_i = 0;
-	vector<RlonRlatHField*> ringbuffer(3);
-	ringbuffer[0] = new RlonRlatHField(UVWFromNCFile(files[0]), hhl);
-	ringbuffer[1] = new RlonRlatHField(UVWFromNCFile(files[1]), hhl);
-	ringbuffer[2] = new RlonRlatHField(UVWFromNCFile(files[2]), hhl);
+	vector<RlonRlatHField<Vec3f>*> ringbuffer(3);
+	ringbuffer[0] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[0]), hhl);
+	ringbuffer[1] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[1]), hhl);
+	ringbuffer[2] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[2]), hhl);
 	int ri0 = 0, ri1 = 1, ri2 = 2;
 
 	// store current position of each trajectory
@@ -115,6 +115,17 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		else other_vars.push_back(i);
 	}
 
+	// need another two fields per other variable
+	vector<vector<RlonRlatHField_f*>> other_fields(other_vars.size());
+	for (int i = 0; i < other_fields.size(); ++i) {
+		other_fields[i].resize(2);
+		for (int j = 0; j < other_fields[i].size(); ++j) {
+			RegScalarField3f* field = NetCDF::ImportScalarField3f(files[j], td.varnames[other_vars[i]], "rlon", "rlat", "level");
+			other_fields[i][j] = new RlonRlatHField_f(field, hhl);
+		}
+	}
+	int other_ri = 0;
+
 	//oh, and write the initial points
 	double lon, lat;
 	for(int i=0;i<td.num_trajectories;++i){
@@ -124,6 +135,10 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
 		td.val(lon_id, i, 0) = lon;
 		td.val(lat_id, i, 0) = lat;
+		for (int j = 0; j < other_fields.size(); ++j) {
+			Vec3f coord(position[i][0], position[i][1], position[i][2]);
+			td.val(other_vars[j], i, 0) = other_fields[j][0]->Sample(coord);//TODO sample correctly
+		}
 	}
 
 	//--------------------- Where particles are traced and paths filled
@@ -136,13 +151,20 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			ri0 = ri1;
 			ri1 = ri2;
 			if (files.size() > file_i + 3) {
-				ringbuffer[file_i % 3] = new RlonRlatHField(UVWFromNCFile(files[file_i + 3]), hhl);
+				ringbuffer[file_i % 3] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl);
+				for (int i = 0; i < other_fields.size(); ++i) {
+					delete other_fields[i][other_ri];
+					cout << "Loading " << td.varnames[other_vars[i]] << "-field from " << files[file_i + 2];
+					RegScalarField3f* field = NetCDF::ImportScalarField3f(files[file_i + 2], td.varnames[other_vars[i]], "rlon", "rlat", "level");
+					other_fields[i][other_ri] = new RlonRlatHField_f(field, hhl);
+				}
 			}
 			else {
 				ringbuffer[file_i % 3] = nullptr;
 				finalPart = true;
 			}
 			ri2 = file_i % 3;
+			other_ri = file_i % 2;
 			++file_i;
 		}
 		for (int i = 0; i < td.num_trajectories; ++i) {
@@ -161,6 +183,10 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
 			td.val(lon_id, i, step_i) = lon;
 			td.val(lat_id, i, step_i) = lat;
+			for (int j = 0; j < other_fields.size(); ++j) {
+				Vec3f coord(position[i][0], position[i][1], position[i][2]);
+				td.val(other_vars[j], i, step_i) = other_fields[j][0]->Sample(coord);//TODO sample correctly
+			}
 		}
 		++step_i;
 	}
