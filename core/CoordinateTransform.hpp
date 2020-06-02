@@ -25,10 +25,9 @@ public:
 
 		// lon
 		double ZLAMPOL = ZPIR18 * POLE_LAMBDA;
-		const double tmpa = -SINPOL * cos(zlams) + COSPOL * sin(zphis);
-		const double tmpb = sin(zlams)*cos(zphis);
-		double ZARG1 = sin(ZLAMPOL) * tmpa - cos(ZLAMPOL)*tmpb;
-		double ZARG2 = cos(ZLAMPOL) * tmpa - sin(ZLAMPOL)*tmpb;
+		double ZARG1 = sin(ZLAMPOL)*(-SINPOL * cos(zlams)*cos(zphis) + COSPOL * sin(zphis)) - cos(ZLAMPOL)*sin(zlams)*cos(zphis);
+		double ZARG2 = cos(ZLAMPOL)*(-SINPOL * cos(zlams)*cos(zphis) + COSPOL * sin(zphis)) + sin(ZLAMPOL)*sin(zlams)*cos(zphis);
+
 		lon = 0;
 		if (std::abs(ZARG2) < 1E-30)
 		{
@@ -57,8 +56,8 @@ public:
 
 
 		// lon
-		double ZARG1 = -sin((ZLAM - ZLAMPOL)) * cos(ZPHI);
-		double ZARG2 = -SINPOL * cos(ZPHI) * cos((ZLAM - ZLAMPOL)) + COSPOL * sin(ZPHI);
+		double ZARG1 = -sin(ZLAM - ZLAMPOL) * cos(ZPHI);
+		double ZARG2 = -SINPOL * cos(ZPHI) * cos(ZLAM - ZLAMPOL) + COSPOL * sin(ZPHI);
 		if (std::abs(ZARG2) < 1E-30)
 		{
 			if (std::abs(ZARG1) < 1E-30)
