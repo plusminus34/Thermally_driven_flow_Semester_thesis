@@ -27,42 +27,6 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
-		TrajectoryData td;
-		td.num_trajectories = 3;
-		td.points_per_trajectory = 12;
-		td.time_begin = 0; td.time_end = 7777;
-		td.varnames.clear();
-		td.varnames.push_back("variabul");
-		td.data.resize(td.num_trajectories);
-		td.data[0].resize(td.points_per_trajectory * td.num_trajectories);
-		for (int i = 0; i < td.points_per_trajectory* td.num_trajectories; ++i) td.data[0][i] = i;
-		int vi = 0;
-		
-		cout << "td: " << td.num_trajectories << " trajectories of " << td.points_per_trajectory << " points\n";
-		for (int i = 0; i < td.points_per_trajectory; ++i) {
-			cout << "td path 0 var " << vi << " at pt " << i << ": " << td.get_value(vi, 0, i) << endl;
-		}
-		
-		TrajectoryData td2;
-		if (NetCDF::WriteTrajectoryData("somewhere.nc", td)) {
-			cout << "good\n";
-
-			if (NetCDF::ReadTrajectoryData("somewhere.nc", td2)) cout << "everything is fine\n";
-			
-			cout << "td2: " << td2.num_trajectories << " trajectories of " << td2.points_per_trajectory << " points\n";
-			for (int i = 0; i < td2.points_per_trajectory; ++i) {
-				cout << "td2 path 0 var "<<vi<<" at pt " << i << ": " << td2.get_value(vi, 0, i) << endl;
-			}
-			
-		}
-		else cout << "NOT GOOD\n";
-		
-		if (NetCDF::ReadTrajectoryData("C:/Users/wiggerl/Documents/output/trajectory_mopts.nc", td2)) cout << "everything is fine\n";
-		vector<float> jo = td2.data[vi];
-		for (int i = 0; i < jo.size(); ++i)cout << " " << jo[i];
-		cout << endl;
-		
-		return 0;
 		double rlonmin = -6, rlonmax = 4, rlatmin = -4, rlatmax = 3;
 		int ii = 5, jj = 5;
 		for (int i = 0; i < ii; ++i) {
@@ -80,7 +44,138 @@ int main(int argc, char *argv[])
 
 		return 0;
 	}
-	if (input < 2){
+	else if (input == 2) {
+
+		string path(argv[1]);
+		NetCDF::Info info;
+		if (!NetCDF::ReadInfo(path, info)) { return -1; }
+
+		double tracing_bounds[6];
+		double spacing[3];
+		int paths_dim[3];
+		int nPaths;
+		double t0, t1, dt;
+		int nSteps;
+		vector<int> extra_variables(0);
+		bool confirmed = false;
+		while (!confirmed) {
+			cout << "Input bounds for tracing in (lat,lon,h) (Format: min_x max_x min_y max_y min_z max_z)\n> ";
+			for (int i = 0; i < 6; ++i) {
+				cin >> tracing_bounds[i];
+				/*
+				if (i % 2 == 0) tracing_bounds[i] = std::max(tracing_bounds[i], bounds[i]);
+				else {
+					tracing_bounds[i] = std::min(tracing_bounds[i], bounds[i]);
+					if (tracing_bounds[i - 1] > tracing_bounds[i]) swap(tracing_bounds[i - 1], tracing_bounds[i]);
+				}
+				*/
+			}
+			cout << "Input spacing between individual starting points  (Format: dx dy dz)> ";
+			for (int i = 0; i < 3; ++i) {
+				cin >> spacing[i];
+				paths_dim[i] = floor((tracing_bounds[2 * i + 1] - tracing_bounds[2 * i]) / spacing[i]) + 1;
+				assert(paths_dim[i] > 0);
+			}
+			nPaths = paths_dim[0] * paths_dim[1] * paths_dim[2];
+			cout << "Input start and end time (Format: t0 t1)> "; cin >> t0; cin >> t1;
+			assert(t1 > t0);
+			cout << "Input timestep> "; cin >> dt;
+			assert(dt > 0);
+			nSteps = ceil((t1 - t0) / dt);
+
+			int more = 0;
+			cout << "How many variables beyond position should be tracked?> ";
+			cin >> more;
+			if (more > 0) {
+				extra_variables.resize(more);
+				cout << "Possible variables include:\n";
+				for (int i = 0; i < info.NumVariables; ++i) {
+					try
+					{
+						NetCDF::Info::Dimension dim0 = info.Variables[i].GetDimensionByName("rlon");
+						NetCDF::Info::Dimension dim1 = info.Variables[i].GetDimensionByName("rlat");
+						NetCDF::Info::Dimension dim2 = info.Variables[i].GetDimensionByName("level");
+
+						cout << "  " << i << ": " << info.Variables[i].GetName() << endl;
+					}
+					catch (const string& str) {}
+				}
+				cout << "Choose which " << more << " to use\nNOTE: they will not actually be written down> ";
+				for (int i = 0; i < more; ++i) {
+					cin >> extra_variables[i];
+				}
+			}
+
+			cout << "This will trace a total of " << nPaths << " trajectories (" << paths_dim[0] << " x " << paths_dim[1] << " x " << paths_dim[2] << ")\n";
+			cout << "There will be up to " << nSteps << " steps per trajectory, storing "<<extra_variables.size()<<" extra variables\n";
+
+			cout << "Confirm (0/1)> "; cin >> confirmed;
+		}
+
+		ImportantPart imp;
+
+		TrajectoryData td;
+		td.num_trajectories = nPaths;
+		td.points_per_trajectory = nSteps + 1;
+		td.time_begin = t0;
+		td.time_end = t1;
+		td.varnames = { "rlon", "rlat", "z", "lon", "lat" };
+		for (int i = 0; i < extra_variables.size(); ++i) {
+			td.varnames.push_back(info.Variables[extra_variables[i]].GetName());
+		}
+
+		string basefile = path;
+		basefile = basefile.substr(0, basefile.size() - 11);
+		imp.setBaseFileName(basefile);
+
+		imp.setTimeBoundaries(t0, t1);
+		imp.setTimestep(dt);
+
+		// 2 0 0.3 2 2.3 -10 8000 0.1 0.1 300 11 1111 44 1
+
+		imp.trajectories.resize(nPaths);
+		cout << "Printing initial points\n";
+		string hhmm = "";
+		int h = td.time_begin / 3600;
+		int m = (td.time_begin - 3600 * h) / 60;
+		if (h < 10) hhmm.append("0");
+		hhmm.append(to_string(h) + ".");
+		if (m < 10) hhmm.append("0");
+		hhmm.append(to_string(m));
+		for (int i = 0; i < paths_dim[0]; ++i) {
+			for (int j = 0; j < paths_dim[1]; ++j) {
+				for (int k = 0; k < paths_dim[2]; ++k) {
+					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
+					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing[0], tracing_bounds[2] + j * spacing[1], tracing_bounds[4] + k * spacing[2]);
+					cout << hhmm << " " << position[0] << " " << position[1] << " " << position[2] << endl;
+					double lat = position[1];
+					double lon = position[0];
+					double rlat, rlon;
+					CoordinateTransform::LatLonToRlanRlon(lat, lon, rlat, rlon);
+					position[0] = rlon; position[1] = rlat;
+					imp.trajectories[path].resize(1);
+					imp.trajectories[path][0] = position;
+				}
+			}
+		}
+
+		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
+		cout << "Read UVW\n";
+		double bounds[6];
+		for (int i = 0; i < 3; ++i) {
+			bounds[2 * i] = field->GetDomain().GetMin()[i];
+			bounds[2 * i + 1] = field->GetDomain().GetMax()[i];
+		}
+		//cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
+		imp.helpWithStuff(field);
+		delete field;
+
+		imp.computeTrajectoryData(td);
+
+		NetCDF::WriteTrajectoryData("imp_trajectory.nc", td);
+		cout << "Finished" << endl;
+	}
+	else if (input < 2) {
 		std::string varname;
 		std::string dimname_0, dimname_1, dimname_2;
 		custom = input;
@@ -243,94 +338,6 @@ int main(int argc, char *argv[])
 		std::cout << "Done." << std::endl;
 		// delete resources and return
 		delete field;
-	}
-	else if (input == 2) {
-		double tracing_bounds[6];
-		double spacing[3];
-		int paths_dim[3];
-		int nPaths;
-		double t0, t1, dt;
-		int nSteps;
-		bool confirmed = false;
-		while (!confirmed) {
-			cout << "Input bounds for tracing in (lat,lon,h) (Format: min_x max_x min_y max_y min_z max_z)\n> ";
-			for (int i = 0; i < 6; ++i) {
-				cin >> tracing_bounds[i];
-				/*
-				if (i % 2 == 0) tracing_bounds[i] = std::max(tracing_bounds[i], bounds[i]);
-				else {
-					tracing_bounds[i] = std::min(tracing_bounds[i], bounds[i]);
-					if (tracing_bounds[i - 1] > tracing_bounds[i]) swap(tracing_bounds[i - 1], tracing_bounds[i]);
-				}
-				*/
-			}
-			cout << "Input spacing between individual starting points  (Format: dx dy dz)> ";
-			for (int i = 0; i < 3; ++i) {
-				cin >> spacing[i];
-				paths_dim[i] = floor((tracing_bounds[2 * i + 1] - tracing_bounds[2 * i]) / spacing[i]) + 1;
-				assert(paths_dim[i] > 0);
-			}
-			nPaths = paths_dim[0] * paths_dim[1] * paths_dim[2];
-			cout << "Input start and end time (Format: t0 t1)> "; cin >> t0; cin >> t1;
-			assert(t1 > t0);
-			cout << "Input timestep> "; cin >> dt;
-			assert(dt > 0);
-			nSteps = ceil((t1 - t0) / dt);
-			cout << "This will trace a total of " << nPaths << " trajectories (" << paths_dim[0] << " x " << paths_dim[1] << " x " << paths_dim[2] << ")\n";
-			cout << "There will be up to "<<nSteps<<" steps per trajectory\n";
-			cout << "Confirm (0/1)> "; cin >> confirmed;
-		}
-
-		ImportantPart imp;
-
-		TrajectoryData td;
-		td.num_trajectories = nPaths;
-		td.points_per_trajectory = nSteps + 1;
-		td.time_begin = t0;
-		td.time_end = t1;
-		td.varnames = { "rlon", "rlat", "z", "lon", "lat" };
-
-		string basefile(argv[1]);
-		basefile = basefile.substr(0, basefile.size() - 11);
-		imp.setBaseFileName(basefile);
-
-		imp.setTimeBoundaries(t0, t1);
-		imp.setTimestep(dt);
-		// 2 0 0.3 2 2.3 -10 8000 0.1 0.1 300 11 1111 44 1
-
-		imp.trajectories.resize(nPaths);
-		for (int i = 0; i < paths_dim[0]; ++i) {
-			for (int j = 0; j < paths_dim[1]; ++j) {
-				for (int k = 0; k < paths_dim[2]; ++k) {
-					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
-					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing[0], tracing_bounds[2] + j * spacing[1], tracing_bounds[4] + k * spacing[2]);
-					cout << "00.00 " << position[0] << " " << position[1] << " " << position[2] << endl;
-					double lat = position[1];
-					double lon = position[0];
-					double rlat, rlon;
-					CoordinateTransform::LatLonToRlanRlon(lat, lon, rlat, rlon);
-					position[0] = rlon; position[1] = rlat;
-					imp.trajectories[path].resize(1);
-					imp.trajectories[path][0] = position;
-				}
-			}
-		}
-
-		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
-		cout << "Read UVW\n";
-		double bounds[6];
-		for (int i = 0; i < 3; ++i) {
-			bounds[2 * i] = field->GetDomain().GetMin()[i];
-			bounds[2 * i + 1] = field->GetDomain().GetMax()[i];
-		}
-		//cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
-		imp.helpWithStuff(field);
-		delete field;
-
-		imp.computeTrajectoryData(td);
-
-		NetCDF::WriteTrajectoryData("imp_trajectory.nc", td);
-		cout << "Finished" << endl;
 	}
 	return 0;
 }

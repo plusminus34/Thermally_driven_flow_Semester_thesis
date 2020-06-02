@@ -535,7 +535,6 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 	int time_id;
 	std::vector<int> var_id(td.varnames.size());
 	if (nc_def_var(ncid, "time", NC_DOUBLE, 2, dim_ids, &time_id)) return false;
-	printf("  time there\n");
 	for (int i = 0; i < td.varnames.size(); ++i) {
 		if (nc_def_var(ncid, td.varnames[i].c_str(), NC_FLOAT, 2, dim_ids, &var_id[i])) return false;
 	}
