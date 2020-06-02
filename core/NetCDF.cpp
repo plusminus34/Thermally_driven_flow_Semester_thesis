@@ -638,5 +638,7 @@ bool NetCDF::ReadTrajectoryData(const std::string & path, TrajectoryData & td)
 
 	if (status = nc_close(ncid)) return false;
 
+	td.compute_value_bounds();
+
 	return true;
 }

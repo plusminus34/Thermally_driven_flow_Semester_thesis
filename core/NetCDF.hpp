@@ -5,6 +5,7 @@
 #include "RegularGrid.hpp"
 #include "TrajectoryData.hpp"
 
+const double ZSCALE = 0.00005;
 class NetCDF
 {
 public:

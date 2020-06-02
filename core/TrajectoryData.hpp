@@ -33,6 +33,22 @@ struct TrajectoryData {
 	*/
 	std::vector<std::vector<float>> data;
 
+	// min and max values of each variable in data
+	std::vector<float> min_values;
+	std::vector<float> max_values;
+	void compute_value_bounds() {
+		min_values.resize(data.size());
+		max_values.resize(data.size());
+		for (int i = 0; i < data.size(); ++i) {
+			min_values[i] = data[i][0];
+			max_values[i] = data[i][0];
+			for (int j = 1; j < data[i].size(); ++j) {
+				if (data[i][j] < min_values[i]) min_values[i] = data[i][j];
+				else if (data[i][j] > max_values[i]) max_values[i] = data[i][j];
+			}
+		}
+	}
+
 	int get_var_id(std::string varname) const {
 		for (int i = 0; i < varnames.size(); ++i)
 			if (varnames[i] == varname) return i;

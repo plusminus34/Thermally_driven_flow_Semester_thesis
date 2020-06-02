@@ -56,6 +56,45 @@ vtkSmartPointer<vtkActor> createLineActor(const std::vector<Vec3f>& line, const 
 	return actor;
 }
 
+vtkSmartPointer<vtkActor> createTrajectoryActor(const TrajectoryData& td, int trajectory_id)
+{
+	int lon_id = td.get_var_id("lon");
+	int lat_id = td.get_var_id("lat");
+	int z_id = td.get_var_id("z");
+	float val = 0; int jojo = 1;
+	// create polyline vertices
+	vtkNew<vtkPoints> points;
+	for (int i = 0; i < td.points_per_trajectory; ++i) {
+		points->InsertNextPoint(td.get_value(lon_id, trajectory_id, i), td.get_value(lat_id, trajectory_id, i), td.get_value(z_id, trajectory_id, i)*ZSCALE);
+		val += td.get_value(jojo, trajectory_id, i);
+	}
+	val /= td.points_per_trajectory;
+
+	// create polyline indices
+	vtkNew<vtkPolyLine> polyLine;
+	polyLine->GetPointIds()->SetNumberOfIds(points->GetNumberOfPoints());
+	for (unsigned int i = 0; i < points->GetNumberOfPoints(); i++)
+		polyLine->GetPointIds()->SetId(i, i);
+
+	// Create a cell array to store the lines in and add the lines to it
+	vtkNew<vtkCellArray> cells;
+	cells->InsertNextCell(polyLine);
+
+	// Create a polydata to store everything in
+	vtkNew<vtkPolyData> polyData;
+	polyData->SetPoints(points);	// Add the points to the dataset
+	polyData->SetLines(cells);			// Add the lines to the dataset
+
+	// Setup actor and mapper
+	vtkNew<vtkPolyDataMapper> mapper;
+	mapper->SetInputData(polyData);
+	vtkNew<vtkActor> actor;
+	actor->SetMapper(mapper);
+	actor->GetProperty()->SetColor(1, 0.5*trajectory_id / td.num_trajectories, val/td.min_values[jojo]);
+	actor->GetProperty()->SetLineWidth(2);
+	return actor;
+}
+
 SceneWidget::SceneWidget()
 {
 	mRenderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
@@ -212,7 +251,8 @@ void SceneWidget::CreateTestScene()
 		renderer->AddActor(createLineActor(paths[i], pathColors[i]));
 	}
 	for (int i = 0; i < paths2.size(); ++i) {
-		renderer->AddActor(createLineActor(paths2[i], pathColors2[i]));
+		//renderer->AddActor(createLineActor(paths2[i], pathColors2[i]));
+		renderer->AddActor(createTrajectoryActor(td2, i));
 	}
 
 	GetRenderWindow()->AddRenderer(renderer);
