@@ -189,6 +189,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			td.val(lon_id, i, step_i) = lon;
 			td.val(lat_id, i, step_i) = lat;
 			for (int j = 0; j < other_fields.size(); ++j) {
+				// hope this works correctly now
 				Vec3f coord(position[i][0], position[i][1], position[i][2]);
 				float val_0 = other_fields[j][other_ri]->Sample(coord);
 				float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);

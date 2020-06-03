@@ -1,6 +1,7 @@
 #include "core/NetCDF.hpp"
 
 #include <iostream>
+#include <fstream>
 #include <vtkImageData.h>
 #include <vtkSmartPointer.h>
 #include <vtkXMLImageDataWriter.h>
@@ -111,6 +112,9 @@ int main(int argc, char *argv[])
 
 			cout << "Confirm (0/1)> "; cin >> confirmed;
 		}
+		string name = "";
+		cout << "Enter a filename> ";
+		cin >> name;
 
 		ImportantPart imp;
 
@@ -135,6 +139,10 @@ int main(int argc, char *argv[])
 
 		imp.trajectories.resize(nPaths);
 		cout << "Printing initial points\n";
+
+		ofstream points_file;
+		points_file.open("points_" + name + ".txt");
+
 		string hhmm = "";
 		int h = td.time_begin / 3600;
 		int m = (td.time_begin - 3600 * h) / 60;
@@ -147,7 +155,7 @@ int main(int argc, char *argv[])
 				for (int k = 0; k < paths_dim[2]; ++k) {
 					int path = i * paths_dim[1] * paths_dim[2] + j * paths_dim[2] + k;
 					Vec3f position = Vec3f(tracing_bounds[0] + i * spacing[0], tracing_bounds[2] + j * spacing[1], tracing_bounds[4] + k * spacing[2]);
-					cout << hhmm << " " << position[0] << " " << position[1] << " " << position[2] << endl;
+					points_file << hhmm << " " << position[0] << " " << position[1] << " " << position[2] << endl;
 					double lat = position[1];
 					double lon = position[0];
 					double rlat, rlon;
@@ -158,6 +166,7 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
+		points_file.close();
 
 		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
 		cout << "Read UVW\n";
@@ -172,7 +181,7 @@ int main(int argc, char *argv[])
 
 		imp.computeTrajectoryData(td);
 
-		NetCDF::WriteTrajectoryData("imp_trajectory.nc", td);
+		NetCDF::WriteTrajectoryData("trajectory_" + name + ".nc", td);
 		cout << "Finished" << endl;
 	}
 	else if (input < 2) {
