@@ -177,19 +177,6 @@ void SceneWidget::CreateTestScene()
 	}
 	vtkNew<vtkActor> landscapeActor;
 	landscapeActor->SetMapper(landscapeMapper);
-
-	/*
-	//Read UVW and convert into RegVectorfield
-	vtkNew<vtkXMLImageDataReader> imageReader;
-	std::string filename = "../cmd/UVW.vti";
-	imageReader->SetFileName(filename.c_str());
-	imageReader->Update();
-	vtkSmartPointer<vtkImageData> imageData = imageReader->GetOutput();
-	int* dims = imageData->GetDimensions();
-	int num_components = imageData->GetNumberOfScalarComponents();
-	double* bounds = imageData->GetBounds();
-	Vec3f midpoint(0.5*(bounds[0] + bounds[1]), 0.5*(bounds[2] + bounds[3]), 0.5*(bounds[4] + bounds[5]));
-	*/
 	
 	string file_1 = "../../../outputs/lag_trajectory_compare_2.nc";
 	string file_2 = "../../../outputs/imp_trajectory_compare_2_T.nc";

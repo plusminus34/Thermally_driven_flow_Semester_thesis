@@ -137,7 +137,10 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		td.val(lat_id, i, 0) = lat;
 		for (int j = 0; j < other_fields.size(); ++j) {
 			Vec3f coord(position[i][0], position[i][1], position[i][2]);
-			td.val(other_vars[j], i, 0) = other_fields[j][0]->Sample(coord);//TODO sample correctly
+			float val_0 = other_fields[j][other_ri]->Sample(coord);
+			float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);
+			float alpha = (td.time_begin - file_t[file_i]) / (file_t[file_i + 1] - file_t[file_i]);
+			td.val(other_vars[j], i, 0) = (1 - alpha)*val_0 + alpha * val_1;
 		}
 	}
 
@@ -152,20 +155,22 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			ri1 = ri2;
 			if (files.size() > file_i + 3) {
 				ringbuffer[file_i % 3] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl);
-				for (int i = 0; i < other_fields.size(); ++i) {
-					delete other_fields[i][other_ri];
-					cout << "Loading " << td.varnames[other_vars[i]] << "-field from " << files[file_i + 2];
-					RegScalarField3f* field = NetCDF::ImportScalarField3f(files[file_i + 2], td.varnames[other_vars[i]], "rlon", "rlat", "level");
-					other_fields[i][other_ri] = new RlonRlatHField_f(field, hhl);
-				}
 			}
 			else {
 				ringbuffer[file_i % 3] = nullptr;
 				finalPart = true;
 			}
 			ri2 = file_i % 3;
-			other_ri = file_i % 2;
 			++file_i;
+		}
+		if (t + dt > file_t[file_i + 1]) {
+			for (int i = 0; i < other_fields.size(); ++i) {
+				delete other_fields[i][other_ri];
+				cout << "Loading " << td.varnames[other_vars[i]] << "-field from " << files[file_i + 2] << endl;
+				RegScalarField3f* field = NetCDF::ImportScalarField3f(files[file_i + 2], td.varnames[other_vars[i]], "rlon", "rlat", "level");
+				other_fields[i][other_ri] = new RlonRlatHField_f(field, hhl);
+			}
+			other_ri = file_i % 2;
 		}
 		for (int i = 0; i < td.num_trajectories; ++i) {
 			if (true) {//if (bb_f.Contains(position[i])) { TODO domain matters
@@ -185,7 +190,10 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			td.val(lat_id, i, step_i) = lat;
 			for (int j = 0; j < other_fields.size(); ++j) {
 				Vec3f coord(position[i][0], position[i][1], position[i][2]);
-				td.val(other_vars[j], i, step_i) = other_fields[j][0]->Sample(coord);//TODO sample correctly
+				float val_0 = other_fields[j][other_ri]->Sample(coord);
+				float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);
+				float alpha = (t - file_t[file_i]) / (file_t[file_i + 1] - file_t[file_i]);
+				td.val(other_vars[j], i, step_i) = (1 - alpha)*val_0 + alpha * val_1;
 			}
 		}
 		++step_i;
