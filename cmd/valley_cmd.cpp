@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 					}
 					catch (const string& str) {}
 				}
-				cout << "Choose which " << more << " to use\nNOTE: they will not actually be written down> ";
+				cout << "Choose which " << more << " to use> ";
 				for (int i = 0; i < more; ++i) {
 					cin >> extra_variables[i];
 				}

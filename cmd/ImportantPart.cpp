@@ -181,7 +181,6 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 					position[i] = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], position[i], t, dt);
 				}
 			}
-			//TODO write td
 			td.val(rlon_id, i, step_i) = position[i][0];
 			td.val(rlat_id, i, step_i) = position[i][1];
 			td.val(z_id, i, step_i) = position[i][2];
