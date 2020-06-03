@@ -137,16 +137,23 @@ void SceneWidget::CreateTestScene()
 
 	// display surface
 	vtkNew<vtkPolyDataMapper> landscapeMapper;
-	if (false) {// TODO check if file exists
+	bool build_landscape = false;// TODO check if file exists automatically
+	if (build_landscape) {
 		std::string constantsfile = "../../../lfff00000000c.nc";
 		vtkSmartPointer<vtkPoints> hfield_points = vtkSmartPointer<vtkPoints>::New();
 		RegScalarField3f* hsurf = NetCDF::ImportScalarField3f(constantsfile, "HSURF", "rlon", "rlat", "time");
 		for (int i = 0; i < hsurf->GetData().size(); ++i) {
-			Vec2i gridCoord = hsurf->GetGridCoord(i);
+			Vec3i gridCoord = hsurf->GetGridCoord(i);
+			/*
+			for some reason delaunay fails (stack overflow) when there are too many points
+			therefore: skip a few
+			*/
+			if (gridCoord[0] % 100 == 1 || gridCoord[1] % 100 == 1) continue;
+
 			Vec3d coord = hsurf->GetCoordAt(gridCoord);
 			double lon, lat;
-			CoordinateTransform::RlatRlonToLatLon(coord[0], coord[1], lat, lon);
-			hfield_points->InsertNextPoint(lon, lat, hsurf->GetData()[i] * ZSCALE);
+			CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
+			hfield_points->InsertNextPoint(lon, lat, hsurf->GetVertexDataAt(gridCoord) * ZSCALE);
 		}
 		delete hsurf;
 		vtkSmartPointer<vtkPolyData> hfield_polydata = vtkSmartPointer<vtkPolyData>::New();
@@ -158,19 +165,19 @@ void SceneWidget::CreateTestScene()
 		landscapeMapper->SetInputData(landscape);
 		// write it down
 		vtkNew<vtkXMLPolyDataWriter> landscapeWriter;
-		landscapeWriter->SetFileName("landscape.vtp");
+		landscapeWriter->SetFileName("landscape_reduced.vtp");
 		landscapeWriter->SetInputData(landscape);
 		landscapeWriter->Write();
 	}
 	else {
 		vtkNew<vtkXMLPolyDataReader> landscapeReader;
-		landscapeReader->SetFileName("landscape.vtp");
+		landscapeReader->SetFileName("landscape_reduced.vtp");
 		landscapeReader->Update();
 		landscapeMapper->SetInputConnection(landscapeReader->GetOutputPort());
 	}
 	vtkNew<vtkActor> landscapeActor;
 	landscapeActor->SetMapper(landscapeMapper);
-	
+
 	/*
 	//Read UVW and convert into RegVectorfield
 	vtkNew<vtkXMLImageDataReader> imageReader;
@@ -185,7 +192,9 @@ void SceneWidget::CreateTestScene()
 	*/
 	
 	string file_1 = "../../../outputs/lag_trajectory_compare_2.nc";
-	string file_2 = "../../../outputs/imp_trajectory_compare_2.nc";
+	string file_2 = "../../../outputs/imp_trajectory_compare_2_T.nc";
+	//string file_1 = "../../../outputs/lag_trajectory_spread_dense.nc";
+	//string file_2 = "../../../outputs/imp_trajectory_spread_dense.nc";
 	
 	TrajectoryData td;
 	NetCDF::ReadTrajectoryData(file_1, td);
@@ -225,28 +234,88 @@ void SceneWidget::CreateTestScene()
 
 	vtkNew<vtkNamedColors> colors;
 
-	/*
-	vtkNew<vtkSphereSource> sphere;
-	//sphere->SetRadius(bb_size);
-	//sphere->SetRadius(bounds[1] - bounds[0]);
-	//sphere->SetCenter(midpoint[0], midpoint[1], midpoint[2]);
-	sphere->Update();
-	vtkNew<vtkOutlineFilter> outline;
-	outline->SetInputData(sphere->GetOutput());
-	vtkNew<vtkPolyDataMapper> outlineMapper;
-	outlineMapper->SetInputConnection(outline->GetOutputPort());
-	vtkNew<vtkActor> outlineActor;
-	outlineActor->SetMapper(outlineMapper);
-	double scale[] = { bounds[1] - bounds[0], bounds[3] - bounds[2], (bounds[5] - bounds[4])*ZSCALE };
-	outlineActor->SetScale(scale);
-	outlineActor->SetPosition(midpoint[0], midpoint[1], midpoint[2] * ZSCALE);
-	*/
-
 	vtkNew<vtkRenderer> renderer;
 	renderer->SetBackground(colors->GetColor3d("SteelBlue").GetData());
 
+	bool debugSpheres = false;
+	if(debugSpheres){
+		vtkNew<vtkSphereSource> sphere;
+		sphere->SetRadius(0.5);
+		sphere->SetCenter(0, 0, 0);
+		sphere->Update();
+		vtkNew<vtkPolyDataMapper> sphereMapper;
+		sphereMapper->SetInputConnection(sphere->GetOutputPort());
+
+		/*
+		vtkNew<vtkActor> sphereActor;
+		sphereActor->SetMapper(sphereMapper);
+		sphereActor->GetProperty()->SetColor(0.5, 0.5, 0.5);
+		renderer->AddActor(sphereActor);
+
+		vtkNew<vtkActor> sphereActorX;
+		sphereActorX->SetMapper(sphereMapper);
+		sphereActorX->GetProperty()->SetColor(1, 0, 0);
+		sphereActorX->SetScale(5, 0.1, 0.1);
+		renderer->AddActor(sphereActorX);
+		vtkNew<vtkActor> sphereActorY;
+		sphereActorY->SetMapper(sphereMapper);
+		sphereActorY->GetProperty()->SetColor(0, 1, 0);
+		sphereActorY->SetScale(0.1, 5, 0.1);
+		renderer->AddActor(sphereActorY);
+		vtkNew<vtkActor> sphereActorZ;
+		sphereActorZ->SetMapper(sphereMapper);
+		sphereActorZ->GetProperty()->SetColor(0, 0, 1);
+		sphereActorZ->SetScale(0.1, 0.1, 5);
+		renderer->AddActor(sphereActorZ);
+		*/
+
+		double rlon, rlat, lon, lat;
+
+		rlon = 0; rlat = 0;
+		CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
+		vtkNew<vtkActor> sphereActor_loco;
+		sphereActor_loco->SetMapper(sphereMapper);
+		sphereActor_loco->GetProperty()->SetColor(1, 0, 1);
+		sphereActor_loco->SetScale(0.3, 0.3, 1);
+		sphereActor_loco->SetPosition(lon, lat, 0);
+		renderer->AddActor(sphereActor_loco);
+
+		rlon = 1; rlat = 0;
+		CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
+		vtkNew<vtkActor> sphereActor_lon;
+		sphereActor_lon->SetMapper(sphereMapper);
+		sphereActor_lon->GetProperty()->SetColor(1, 0.5, 0);
+		sphereActor_lon->SetScale(0.5, 0.2, 0.8);
+		sphereActor_lon->SetPosition(lon, lat, 0);
+		renderer->AddActor(sphereActor_lon);
+
+		rlon = 0; rlat = 1;
+		CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
+		vtkNew<vtkActor> sphereActor_lat;
+		sphereActor_lat->SetMapper(sphereMapper);
+		sphereActor_lat->GetProperty()->SetColor(0, 0.5, 1);
+		sphereActor_lat->SetScale(0.2, 0.5, 0.8);
+		sphereActor_lat->SetPosition(lon, lat, 0);
+		renderer->AddActor(sphereActor_lat);
+
+
+		for (int i = 0; i <= 10; ++i) {
+			for (int j = 0; j <= 5; ++j) {
+				double rlon = i * 0.1;
+				double rlat = j * 0.1;
+				double lon, lat;
+				CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
+				vtkNew<vtkActor> sphereActor_ij;
+				sphereActor_ij->SetMapper(sphereMapper);
+				sphereActor_ij->GetProperty()->SetColor(rlon, rlat, 0.5);
+				sphereActor_ij->SetScale(0.03, 0.03, 0.1);
+				sphereActor_ij->SetPosition(lon, lat, 1);
+				renderer->AddActor(sphereActor_ij);
+			}
+		}
+	}
+
 	renderer->AddActor(landscapeActor);
-	//renderer->AddActor(outlineActor);
 	for (int i = 0; i < paths.size(); ++i) {
 		renderer->AddActor(createLineActor(paths[i], pathColors[i]));
 	}
