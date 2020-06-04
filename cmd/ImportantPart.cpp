@@ -202,10 +202,3 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];
 	std::cout << "Trajectories have been computed\n";
 }
-
-void ImportantPart::helpWithStuff(RegVectorField3f* uvw)
-{
-	boundsmin = uvw->GetDomain().GetMin();
-	boundsmax = uvw->GetDomain().GetMax();
-	resolution = uvw->GetResolution();
-}

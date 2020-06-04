@@ -168,17 +168,7 @@ int main(int argc, char *argv[])
 		}
 		points_file.close();
 
-		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
-		cout << "Read UVW\n";
-		double bounds[6];
-		for (int i = 0; i < 3; ++i) {
-			bounds[2 * i] = field->GetDomain().GetMin()[i];
-			bounds[2 * i + 1] = field->GetDomain().GetMax()[i];
-		}
-		//cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
-		imp.helpWithStuff(field);
-		delete field;
-
+		// Do the important part
 		imp.computeTrajectoryData(td);
 
 		NetCDF::WriteTrajectoryData("trajectory_" + name + ".nc", td);
