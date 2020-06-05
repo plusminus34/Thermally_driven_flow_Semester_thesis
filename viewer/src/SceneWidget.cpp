@@ -56,8 +56,9 @@ vtkSmartPointer<vtkActor> createLineActor(const std::vector<Vec3f>& line, const 
 	return actor;
 }
 
-vtkSmartPointer<vtkActor> createTrajectoryActor(const TrajectoryData& td, int trajectory_id)
+vtkSmartPointer<vtkActor> createTrajectoryActor(const TrajectoryData& td, int trajectory_id, bool use_rotated, int nix = 0)
 {
+	int npts = 0;
 	int lon_id = td.get_var_id("lon");
 	int lat_id = td.get_var_id("lat");
 	int z_id = td.get_var_id("z");
@@ -65,10 +66,22 @@ vtkSmartPointer<vtkActor> createTrajectoryActor(const TrajectoryData& td, int tr
 	// create polyline vertices
 	vtkNew<vtkPoints> points;
 	for (int i = 0; i < td.points_per_trajectory; ++i) {
-		points->InsertNextPoint(td.get_value(lon_id, trajectory_id, i), td.get_value(lat_id, trajectory_id, i), td.get_value(z_id, trajectory_id, i)*ZSCALE);
+		float lon = td.get_value(lon_id, trajectory_id, i);
+		float lat = td.get_value(lat_id, trajectory_id, i);
+		if (lon < -10 || lon > 20 || lat < 40 || lat > 60) break;//stay roughly in interesting region
+		if (use_rotated) {
+			double rlon, rlat;
+			CoordinateTransform::LatLonToRlanRlon(lat, lon, rlat, rlon);
+			points->InsertNextPoint(rlon, rlat, td.get_value(z_id, trajectory_id, i)*ZSCALE);
+		}
+		else {
+			points->InsertNextPoint(lon, lat, td.get_value(z_id, trajectory_id, i)*ZSCALE);
+		}
 		val += td.get_value(jojo, trajectory_id, i);
+		++npts;
 	}
-	val /= td.points_per_trajectory;
+	if (npts == 0) return nullptr;
+	val /= npts;
 
 	// create polyline indices
 	vtkNew<vtkPolyLine> polyLine;
@@ -90,8 +103,8 @@ vtkSmartPointer<vtkActor> createTrajectoryActor(const TrajectoryData& td, int tr
 	mapper->SetInputData(polyData);
 	vtkNew<vtkActor> actor;
 	actor->SetMapper(mapper);
-	actor->GetProperty()->SetColor(1, 0.5*trajectory_id / td.num_trajectories, val/td.min_values[jojo]);
-	actor->GetProperty()->SetLineWidth(2);
+	actor->GetProperty()->SetColor(0.9-0.7*nix, 0.7*nix, 0.2+0.2*nix);//(nix, 0.5*trajectory_id / td.num_trajectories, val/td.min_values[jojo]);
+	actor->GetProperty()->SetLineWidth(1+nix);
 	return actor;
 }
 
@@ -103,41 +116,15 @@ SceneWidget::SceneWidget()
 	CreateTestScene();
 }
 
-const double PI = 3.14159265358979;
-
-class ABCFlow : public ISampleField<Vec4f,4> {
-public:
-	virtual Vec4f Sample(const Vec<double, 4>& coord) const override {
-		return Vec4f(
-			((1 - exp(-0.1*coord[3]))*sin(2.0*PI*coord[3]) + sqrt(3))*sin(coord[2]) + cos(coord[1]),
-			((1 - exp(-0.1*coord[3]))*sin(2.0*PI*coord[3]) + sqrt(3))*cos(coord[2]) + sqrt(2)*sin(coord[0]),
-			sin(coord[1]) + sqrt(2)*cos(coord[0]),
-			1
-		);
-	}
-};
-
-class CenterField : public ISampleField<Vec2f, 2> {
-public:
-	virtual Vec2f Sample(const Vec<double, 2>& coord) const override {
-		return Vec2f( -coord[1], coord[0] );
-	}
-};
-
 void SceneWidget::CreateTestScene()
 {
 	// Settings
 
-	const int sampled_field_resolution = 30;
-	const double t0 = 0.0;
-	const double t1 = 100000.0;
-	const double dt = 5;
-
-	const double bb_size = 7.0;
+	bool build_landscape = false;// TODO check if file exists automatically
+	bool use_rotated = true;
 
 	// display surface
 	vtkNew<vtkPolyDataMapper> landscapeMapper;
-	bool build_landscape = false;// TODO check if file exists automatically
 	if (build_landscape) {
 		std::string constantsfile = "../../../lfff00000000c.nc";
 		vtkSmartPointer<vtkPoints> hfield_points = vtkSmartPointer<vtkPoints>::New();
@@ -151,9 +138,14 @@ void SceneWidget::CreateTestScene()
 			if (gridCoord[0] % 100 == 1 || gridCoord[1] % 100 == 1) continue;
 
 			Vec3d coord = hsurf->GetCoordAt(gridCoord);
-			double lon, lat;
-			CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
-			hfield_points->InsertNextPoint(lon, lat, hsurf->GetVertexDataAt(gridCoord) * ZSCALE);
+			if (use_rotated) {
+				hfield_points->InsertNextPoint(coord[0], coord[1], hsurf->GetVertexDataAt(gridCoord) * ZSCALE);
+			}
+			else {
+				double lon, lat;
+				CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
+				hfield_points->InsertNextPoint(lon, lat, hsurf->GetVertexDataAt(gridCoord) * ZSCALE);
+			}
 		}
 		delete hsurf;
 		vtkSmartPointer<vtkPolyData> hfield_polydata = vtkSmartPointer<vtkPolyData>::New();
@@ -165,23 +157,26 @@ void SceneWidget::CreateTestScene()
 		landscapeMapper->SetInputData(landscape);
 		// write it down
 		vtkNew<vtkXMLPolyDataWriter> landscapeWriter;
-		landscapeWriter->SetFileName("landscape_reduced.vtp");
+		if (use_rotated) landscapeWriter->SetFileName("landscape_reduced_r.vtp");
+		else landscapeWriter->SetFileName("landscape_reduced.vtp");
+		
 		landscapeWriter->SetInputData(landscape);
 		landscapeWriter->Write();
 	}
 	else {
 		vtkNew<vtkXMLPolyDataReader> landscapeReader;
-		landscapeReader->SetFileName("landscape_reduced.vtp");
+		if(use_rotated) landscapeReader->SetFileName("landscape_reduced_r.vtp");
+		else landscapeReader->SetFileName("landscape_reduced.vtp");
 		landscapeReader->Update();
 		landscapeMapper->SetInputConnection(landscapeReader->GetOutputPort());
 	}
 	vtkNew<vtkActor> landscapeActor;
 	landscapeActor->SetMapper(landscapeMapper);
 	
-	string file_1 = "../../../outputs/lag_trajectory_compare_2.nc";
-	string file_2 = "../../../outputs/imp_trajectory_compare_2_T.nc";
-	//string file_1 = "../../../outputs/lag_trajectory_spread_dense.nc";
-	//string file_2 = "../../../outputs/imp_trajectory_spread_dense.nc";
+	//string file_1 = "../../../outputs/lagranto_demo_605.nc";
+	//string file_2 = "../../../outputs/trajectory_demo_605.nc";
+	string file_1 = "../../../outputs/lag_trajectory_spread_dense.nc";
+	string file_2 = "../../../outputs/imp_trajectory_spread_dense.nc";
 	
 	TrajectoryData td;
 	NetCDF::ReadTrajectoryData(file_1, td);
@@ -303,12 +298,14 @@ void SceneWidget::CreateTestScene()
 	}
 
 	renderer->AddActor(landscapeActor);
-	for (int i = 0; i < paths.size(); ++i) {
-		renderer->AddActor(createLineActor(paths[i], pathColors[i]));
+	int inc = 5;
+	for (int i = 0; i < paths.size(); i+=inc) {
+		//renderer->AddActor(createLineActor(paths[i], pathColors[i]));
+		renderer->AddActor(createTrajectoryActor(td, i, use_rotated, 1));
 	}
-	for (int i = 0; i < paths2.size(); ++i) {
+	for (int i = 0; i < paths2.size(); i+=inc) {
 		//renderer->AddActor(createLineActor(paths2[i], pathColors2[i]));
-		renderer->AddActor(createTrajectoryActor(td2, i));
+		renderer->AddActor(createTrajectoryActor(td2, i, use_rotated));
 	}
 
 	GetRenderWindow()->AddRenderer(renderer);
