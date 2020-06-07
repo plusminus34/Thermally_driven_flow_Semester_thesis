@@ -363,24 +363,30 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarFiel
 		td.val(lat_id, i, 0) = lat;
 	}
 
-	//TODO trace
-
 	//cout << "hhl domain: x " << x0 << " to " << x1 << "\ty " << y0 << " to " << y1 << endl;
 	//cout << "    voxelsize " << dx << " " << dy << "\tres " << res_x << " " << res_y << endl;
 
-	for (int traj = 0; traj < 1;++traj) {//TODO for trajectories
+	for (int traj = 0; traj < 1;++traj) {
 		Vec3d coord = position[0];
-		cout << "coord begin: " << coord[0] << " " << coord[1] << " " << coord[2] << endl;
-		for (double t = td.time_begin; t < td.time_end; t += dt) {//TODO for timesteps
+		cout << "coord begin: " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
+		int step_i = 1;
+		for (double t = td.time_begin; t < td.time_end; t += dt) {
 
-			Vec3f uvw0 = sampleUVWTEST(coord, U, V, W, hhl);
-			Vec3f res = coord;
+			Vec3f uvw0 = sampleUVWTEST(position[traj], U, V, W, hhl);
+			Vec3f res = position[traj];
 			for (int i = 0; i < 3; ++i) {
 				Vec3f uvw1 = sampleUVWTEST(res, U, V, W, hhl);
-				res = coord + (uvw0 + uvw1)*dt*0.5;
+				res = position[traj] + (uvw0 + uvw1)*dt*0.5;
 			}
-			coord = res;
-			cout << "coord t "<<t<<": " << coord[0] << " " << coord[1] << " " << coord[2] << endl;
+			position[traj] = res;
+			//cout << "coord t "<<t<<": " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
+			td.val(rlon_id, traj, step_i) = position[traj][0];
+			td.val(rlat_id, traj, step_i) = position[traj][1];
+			td.val(z_id, traj, step_i) = position[traj][2];
+			CoordinateTransform::RlatRlonToLatLon(position[traj][1], position[traj][0], lat, lon);
+			td.val(lon_id, traj, step_i) = lon;
+			td.val(lat_id, traj, step_i) = lat;
+			++step_i;
 		}
 	}
 

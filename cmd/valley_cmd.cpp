@@ -35,8 +35,6 @@ int main(int argc, char *argv[])
 		SeparateUVWFromNCFile(path, U, V, W);
 		assert(U != nullptr);
 		assert(U);
-		Vec3i gc = U->GetGridCoord(67);
-		cout << "ggg " << gc[0] << " " << gc[1] << " " << gc[2] << endl;
 		Vec3i dim = U->GetResolution();
 		cout << "U dim: " << dim[0] << " " << dim[1] << " " << dim[2] << endl;
 		dim = V->GetResolution();
@@ -48,39 +46,6 @@ int main(int argc, char *argv[])
 		cout << "  U " << U->GetVertexDataAt(wo)<<endl;
 		cout << "  V " << V->GetVertexDataAt(wo) << endl;
 		cout << "  W " << W->GetVertexDataAt(wo) << endl;
-		Vec3d wa(-2.0837, -0.960101426, 4000);
-		Vec3f trg(15.15658, 13.92212799, -2.81133294);
-		//wa = U->GetCoordAt(wo);
-		for (double i = -2; i < 2; i+=10.001) {
-			for (double j = -2; j < 2; j+=10.01) {
-				for (double k = -2; k < 2; k+=100.01) {
-					Vec3d ww = wa + Vec3d(i, j, k);
-					Vec3f uvw(U->Sample(ww), V->Sample(ww), W->Sample(ww));
-					if ((uvw - trg).length() < 0.1) {
-						cout << "pos " << ww[0] << " " << ww[1] << " " << ww[2] << endl;
-						cout << "  uvw   " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
-					}
-				}
-			}
-		}
-		cout << "at pos " << wa[0] << " " << wa[1] << " " << wa[2] << endl;
-		cout << "  U " << U->Sample(wa) << endl;
-		cout << "  V " << V->Sample(wa) << endl;
-		cout << "  W " << W->Sample(wa) << endl;
-		string constantsfile = path;
-		for (int i = 0; i < constantsfile.size(); ++i) {
-			if (constantsfile[i] == '0' && constantsfile[i + 1] == '.')
-			{
-				constantsfile.append("c");
-				constantsfile[i + 1] = 'c';
-				constantsfile[i + 2] = '.';
-				constantsfile[i + 3] = 'n';
-				break;
-			}
-		}
-		cout << "Reading hhl from " << constantsfile << endl;
-		RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
-
 
 		//TODO  test-integrator similar to input 2
 
@@ -115,113 +80,14 @@ int main(int argc, char *argv[])
 		// Do the important part
 		imp.computeTrajectoryDataTEST(td, U, V, W);
 
-
-
-		return 0;// The end for the working part
-
-		cout << "Domains\n";
-		cout << "U min x " << U->GetDomain().GetMin()[0] << endl;
-		cout << "V min x " << V->GetDomain().GetMin()[0] << endl;
-		cout << "W min x " << W->GetDomain().GetMin()[0] << endl;
-		cout << "hhlmn x " << hhl->GetDomain().GetMin()[0] << endl;
-
-		cout << "U max x " << U->GetDomain().GetMax()[0] << endl;
-		cout << "V max x " << V->GetDomain().GetMax()[0] << endl;
-		cout << "W max x " << W->GetDomain().GetMax()[0] << endl;
-		cout << "h max x " << hhl->GetDomain().GetMax()[0] << endl;
-
-		cout << "U min y " << U->GetDomain().GetMin()[1] << endl;
-		cout << "V min y " << V->GetDomain().GetMin()[1] << endl;
-		cout << "W min y " << W->GetDomain().GetMin()[1] << endl;
-		cout << "h min y " << hhl->GetDomain().GetMin()[1] << endl;
-
-		cout << "U max y " << U->GetDomain().GetMax()[1] << endl;
-		cout << "V max y " << V->GetDomain().GetMax()[1] << endl;
-		cout << "W max y " << W->GetDomain().GetMax()[1] << endl;
-		cout << "h max y " << hhl->GetDomain().GetMax()[1] << endl;
-
-		//cout << "U min z " << U->GetDomain().GetMin()[2] << endl;
-		cout << "U max z " << U->GetDomain().GetMax()[2] << endl;
-		//cout << "V min z " << V->GetDomain().GetMin()[2] << endl;
-		cout << "V max z " << V->GetDomain().GetMax()[2] << endl;
-		//cout << "W min z " << W->GetDomain().GetMin()[2] << endl;
-		cout << "W max z " << W->GetDomain().GetMax()[2] << endl;
-		//cout << "h min z " << hhl->GetDomain().GetMin()[2] << endl;
-		cout << "h max z " << hhl->GetDomain().GetMax()[2] << endl;
-
-		cout << "U res: " << U->GetResolution()[0] << " " << U->GetResolution()[1] << " " << U->GetResolution()[2] << endl;
-		cout << "v res: " << V->GetResolution()[0] << " " << V->GetResolution()[1] << " " << V->GetResolution()[2] << endl;
-		cout << "w res: " << W->GetResolution()[0] << " " << W->GetResolution()[1] << " " << W->GetResolution()[2] << endl;
-		cout << "hhl res: " << hhl->GetResolution()[0] << " " << hhl->GetResolution()[1] << " " << hhl->GetResolution()[2] << endl;
-
-		cout << "making uvw\n";
-		RegVectorField3f uvw(W->GetResolution(), W->GetDomain());
-		for (int i = 0; i < uvw.GetData().size(); ++i) {
-			Vec3i gc = uvw.GetGridCoord(i);
-			Vec3d val(U->GetVertexDataAt(gc), V->GetVertexDataAt(gc), W->GetVertexDataAt(gc));
-			uvw.SetVertexDataAt(gc, val);
-		}
-		cout << "uvw done\n";
-
-		for (double haa = 49.2; haa < 49.3; haa += 0.001) {
-			//-2.08378 - 0.960101 49.241
-			Vec3d p = coord; p[2] = haa;
-			Vec3f was = uvw.Sample(p);
-			if (abs(was[2] - trg[2]) < 0.001) {
-				cout << "hm? p   " << p[0] << " " << p[1] << " " << p[2] << endl;
-				cout << "   uvw  " << was[0] << " " << was[1] << " " << was[2] << endl;
-				for (double hb = 48; hb < 52; hb += 0.001) {
-					//no success :(			 what can i do?
-					Vec3d p2 = coord; p[2] = hb;
-					Vec3f wat = uvw.Sample(p2);
-					if (abs(wat[0] - trg[0]) < 0.001 && abs(wat[1] - trg[1]) < 0.001) {
-						cout << "      p2  " << p2[0] << " " << p2[1] << " " << p2[2] << endl;
-						cout << "      uvw " << wat[0] << " " << wat[1] << " " << wat[2] << endl;
-					}
-				}
-			}
+		NetCDF::WriteTrajectoryData("trajectory_TEST.nc", td);
+		int lon_id = td.get_var_id("lon");
+		for (int i = 0; i < 10; ++i) {
+			cout << "tdi " << i << ": " << td.val(lon_id, 0, i) << endl;
 		}
 
-
-		for (int i = 110; i < 15; ++i) {
-			for (int j = 10; j < 15; ++j) {
-				int k = 20;
-				Vec3i ij(i, j, k);
-				cout << "HHL " << i << " " << j << " " << k << ": " << hhl->GetVertexDataAt(ij)<<endl;
-			}
-		}
 
 		return 0;
-		/*
-		Vec3i res(8, 8, 10);
-		Vec3d bmin(-1, -2, 0);
-		Vec3d bmax(1, 1, 1);
-		BoundingBox3d bb(bmin, bmax);
-		RegScalarField3f* jojo = new RegScalarField3f(res,bb);
-		RegScalarField3f hhl(res, bb);
-		for (int i = 0; i < res[0]; ++i) {
-			for (int j = 0; j < res[1]; ++j) {
-				for (int k = 0; k < res[2]; ++k) {
-					jojo->SetVertexDataAt(Vec3i(i, j, k), k);
-					hhl.SetVertexDataAt(Vec3i(i, j, k), (res[2] - 1)*(res[2] - 1) - k * k);
-				}
-			}
-		}
-		for (int i = 0; i < res[2]; ++i) {
-			cout << "lvl " << i << ": h = " << hhl.GetVertexDataAt(Vec3i(0, 0, i));
-			cout << "\tand jojo = " << jojo->GetVertexDataAt(Vec3i(0, 0, i)) << endl;
-		}
-		RlonRlatHField field(jojo, &hhl);
-		for (int i = 0; i < 50; ++i) {
-			Vec3d pos(0, 0, i*1.2);
-			cout << " h" << i << " = " << pos[2];
-			float lvl = field.SampleXYiHd(0, 0, pos[2]);
-			cout << "   has level " << lvl << endl;
-			cout << "     and sample " << field.Sample(pos) << endl;
-		}
-
-		return 0;
-		*/
 	}
 	else if (input == 2) {
 
