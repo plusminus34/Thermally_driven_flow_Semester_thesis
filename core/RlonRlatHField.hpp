@@ -35,7 +35,7 @@ public:
 		double w1 = rlat_d - rlat_i;
 		if (w0 < 0) { cout << "ERROR: w0 = " << w0 << " < 0" << endl; w0 = 0; }
 		else if (w0 > 1) { cout << "ERROR: w0 = " << w0 << " > 1" << endl; w0 = 1; }
-		if (w1 < 0) { cout << "ERROR: w1 = " << w1 << " < 0" << endl; w1 = 0; }
+		if (w1 < 0) { cout << "ERROR: w1 = " << w1 << " < 0" << "  rlat_d "<<rlat_d<<" rlati "<<rlat_i << endl; w1 = 0; }
 		else if (w1 > 1) { cout << "ERROR: w1 = " << w1 << " > 1" << endl; w1 = 1; }
 		TValueType tmp0 = SampleXYiHd(rlon_i, rlat_i, coord[2]) * (1 - w0) + SampleXYiHd(rlon_i + 1, rlat_i, coord[2]) * w0;
 		TValueType tmp1 = SampleXYiHd(rlon_i, rlat_i + 1, coord[2]) * (1 - w0) + SampleXYiHd(rlon_i + 1, rlat_i + 1, coord[2]) * w0;
@@ -50,27 +50,27 @@ public:
 		assert(rlat_i > -1 && rlat_i < res_y);
 
 		//binary search at rlon_i,rlat_i to find level for h
-		int lower = 0;
-		int upper = lvl_top;
-		if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset)) return TValueType();
-		if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset)) return TValueType();
+		int lvl_0 = 0;
+		int lvl_1 = lvl_top;
+		if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0) + hhl_offset)) return TValueType();
+		if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1) + hhl_offset)) return TValueType();
 
-		while (upper > lower + 1) {
-			int half = (upper + lower) / 2;
-			//cout << "half " << half << " between " << upper << " and " << lower << endl;
+		while (lvl_1 > lvl_0 + 1) {
+			int half = (lvl_1 + lvl_0) / 2;
+			//cout << "half " << half << " between " << lvl_1 << " and " << lvl_0 << endl;
 			if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half) + hhl_offset) < h)
-				upper = half;
-			else lower = half;
+				lvl_1 = half;
+			else lvl_0 = half;
 		}
-		const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, upper) + hhl_offset);
-		const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lower) + hhl_offset);
+		const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1) + hhl_offset);
+		const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0) + hhl_offset);
 		// and then sample uvw
 		float alpha = (h - h0) / (h1 - h0);
-		Vec3i smp0(rlon_i, rlat_i, lower);
-		Vec3i smp1(rlon_i, rlat_i, upper);
+		Vec3i smp0(rlon_i, rlat_i, lvl_0);
+		Vec3i smp1(rlon_i, rlat_i, lvl_1);
 		TValueType res = TValueType();
-		if (lower > 0) res += uvw->GetVertexDataAt(smp0)*(1 - alpha);
-		if (upper < uvw->GetResolution()[2]) res += uvw->GetVertexDataAt(smp1)*alpha;
+		if (lvl_0 > 0) res += uvw->GetVertexDataAt(smp0)*(1 - alpha);
+		if (lvl_1 < uvw->GetResolution()[2]) res += uvw->GetVertexDataAt(smp1)*alpha;
 		return res;
 	}
 private:

@@ -101,7 +101,7 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 		CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
 		double dlon, dlat;
 		CoordinateTransform::degreeLengthsSimple(lat, dlat, dlon);
-		if (dlon != 0)v[0] /= dlon;
+		if (dlon != 0) v[0] /= dlon;
 		else v[0] = 0;
 		v[1] /= dlat;
 		uvw->SetVertexDataAt(gridCoord, v);
@@ -132,4 +132,52 @@ RegVectorField3f* UVWFromNCFile(string filename) {
 	delete field;
 
 	return uvw;
+}
+
+void SeparateUVWFromNCFile(string filename, RegScalarField3f* &U, RegScalarField3f* &V, RegScalarField3f * &W)
+{
+	cout << "Importing UVW from " << filename << " (Lagranto style)" << endl;
+	// Constants: variable names and unit vectors
+	const Vec3i uX(1, 0, 0); const Vec3i uY(0, 1, 0); const Vec3i uZ(0, 0, 1);
+	cout << "reading U\n";
+	RegScalarField3f* U0 = NetCDF::ImportScalarField3f(filename, "U", "srlon", "rlat", "level");
+	U = new RegScalarField3f(U0->GetResolution(), U0->GetDomain());
+	for (int i = 0; i < U->GetData().size(); ++i) {
+		Vec3i gc = U->GetGridCoord(i);
+		if (gc[0] > 0) {
+			float val = 0.5*(U0->GetVertexDataAt(gc) + U0->GetVertexDataAt(gc - uX));
+			U->SetVertexDataAt(gc, val);
+		}
+		else {
+			// inaccurate slice at the end: just like in lagranto
+			U->SetVertexDataAt(gc, U0->GetVertexDataAt(gc));
+		}
+	}
+	delete U0;
+	cout << "reading V\n";
+	RegScalarField3f* V0 = NetCDF::ImportScalarField3f(filename, "V", "rlon", "srlat", "level");
+	V = new RegScalarField3f(V0->GetResolution(), V0->GetDomain());
+	for (int i = 0; i < V->GetData().size(); ++i) {
+		Vec3i gc = V->GetGridCoord(i);
+		if (gc[1] > 0) {
+			float val = 0.5*(V0->GetVertexDataAt(gc) + V0->GetVertexDataAt(gc - uY));
+			V->SetVertexDataAt(gc, val);
+		}
+		else {
+			V->SetVertexDataAt(gc, V0->GetVertexDataAt(gc));
+		}
+	}
+	delete V0;
+	cout << "reading W\n";
+	RegScalarField3f* W0 = NetCDF::ImportScalarField3f(filename, "W", "rlon", "rlat", "level1");
+	Vec3d wmin = W0->GetDomain().GetMin();
+	Vec3d wmax = W0->GetDomain().GetMax();
+	wmax[2] -= 1;
+	W = new RegScalarField3f(W0->GetResolution() - uZ, BoundingBox3d(wmin, wmax));
+	for (size_t i = 0; i < W->GetData().size(); ++i) {
+		Vec3i gridCoord = W->GetGridCoord(i);
+		float val = 0.5*(W0->GetVertexDataAt(gridCoord) + W0->GetVertexDataAt(gridCoord + uZ));
+		W->SetVertexDataAt(gridCoord, val);
+	}
+	delete W0;
 }

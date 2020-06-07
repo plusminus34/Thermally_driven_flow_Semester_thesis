@@ -15,6 +15,7 @@ public:
 	// Where trajectories are computed
 	void doStuff();
 	void computeTrajectoryData(TrajectoryData& td);
+	void computeTrajectoryDataTEST(TrajectoryData& td, RegScalarField3f* U, RegScalarField3f* V, RegScalarField3f* W);
 
 	// Set parameters
 	// Start and end time of tracing
@@ -41,4 +42,6 @@ private:
 	double start_t = 0.0;
 	double end_t = 1200.0;
 	double dt = 1; int nSteps = 1200;
+
+	Vec3f sampleUVWTEST(Vec3d coord, RegScalarField3f* U, RegScalarField3f* V, RegScalarField3f* W, RegScalarField3f* hhl);
 };

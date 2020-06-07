@@ -38,6 +38,115 @@ string ImportantPart::IntToDDHHMMSS(int seconds) const {
 
 }
 
+Vec3f ImportantPart::sampleUVWTEST(Vec3d coord, RegScalarField3f * U, RegScalarField3f * V, RegScalarField3f * W, RegScalarField3f* hhl)
+{
+
+// constants
+const double x0 = hhl->GetDomain().GetMin()[0];
+const double x1 = hhl->GetDomain().GetMax()[0];
+const double y0 = hhl->GetDomain().GetMin()[1];
+const double y1 = hhl->GetDomain().GetMax()[1];
+const int res_x = hhl->GetResolution()[0];
+const int res_y = hhl->GetResolution()[1];
+const double dx = hhl->GetVoxelSize()[0];
+const double dy = hhl->GetVoxelSize()[1];
+
+	double rlon_d = (coord[0] - x0) / (x1 - x0) * (res_x - 1);
+	double rlat_d = (coord[1] - y0) / (y1 - y0) * (res_y - 1);
+	int rlon_i = std::min(std::max(0, (int)std::floor(rlon_d)), res_x - 1);
+	int rlat_i = std::min(std::max(0, (int)std::floor(rlat_d)), res_y - 1);
+	double w0 = rlon_d - rlon_i;
+	double w1 = rlat_d - rlat_i;
+
+	//cout << "point " << coord[0] << " " << coord[1] << " " << coord[2] << endl;
+	//cout << " has rlon_i, rlat_i " << rlon_i << ", " << rlat_i << endl;
+	//cout << " and rlon_d, rlat_d " << rlon_d << ", " << rlat_d << endl;
+
+	double h = coord[2];
+	double lvl_d = 0;
+	{
+		int lvl_0 = 0;
+		int lvl_1 = 80;
+		if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0))) lvl_d = -1;
+		if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1))) lvl_d = -1;
+
+		while (lvl_1 > lvl_0 + 1) {
+			int half = (lvl_1 + lvl_0) / 2;
+			//cout << "half " << half << " between " << lvl_1 << " and " << lvl_0 << endl;
+			if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half)) < h)
+				lvl_1 = half;
+			else lvl_0 = half;
+		}
+		const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1));
+		const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0));
+		// and then sample uvw
+		float alpha = (h - h0) / (h1 - h0);
+		Vec3i smp0(rlon_i, rlat_i, lvl_0);
+		Vec3i smp1(rlon_i, rlat_i, lvl_1);
+		//cout << "localized: h " << h << " belongs between h0 and h1 " << h0 << " " << h1 << endl;
+		//cout << "   which means level1s " << lvl_0 << " " << lvl_1 << endl;
+		double res = 0;
+		if (lvl_0 > 0) res += hhl->GetVertexDataAt(smp0)*(1 - alpha);
+		if (lvl_1 < hhl->GetResolution()[2]) res += hhl->GetVertexDataAt(smp1)*alpha;
+		lvl_d = lvl_0 + alpha;
+	}
+	//cout << "lvl_d is " << lvl_d << endl;
+
+	Vec3f uvw(0, 0, 0);
+	double lvl_d_0 = lvl_d;
+	for (int count = 1; count <= 2; ++count) {
+		lvl_d = lvl_d_0 - count * 0.5;
+		int lvl_i = lvl_d;
+		double wx = rlon_d - rlon_i;
+		double wy = rlat_d - rlat_i;
+		double wz = lvl_d - lvl_i;
+
+		Vec3i gcs[8];
+		double ws[8];
+		for (int i = 0; i < 2; ++i) {
+			for (int j = 0; j < 2; ++j) {
+				for (int k = 0; k < 2; ++k) {
+					ws[4 * i + 2 * j + k] = 0;
+				}
+			}
+		}
+		ws[0] = (1 - wx) * (1 - wy) * (1 - wz); gcs[0] = Vec3i(rlon_i, rlat_i, lvl_i);
+		ws[1] = wx * (1 - wy) * (1 - wz); gcs[1] = Vec3i(rlon_i + 1, rlat_i, lvl_i);
+		ws[2] = (1 - wx) * wy * (1 - wz); gcs[2] = Vec3i(rlon_i, rlat_i + 1, lvl_i);
+		ws[3] = wx * wy * (1 - wz); gcs[3] = Vec3i(rlon_i + 1, rlat_i + 1, lvl_i);
+		ws[4] = (1 - wx) * (1 - wy) * wz; gcs[4] = Vec3i(rlon_i, rlat_i, lvl_i + 1);
+		ws[5] = wx * (1 - wy) * wz; gcs[5] = Vec3i(rlon_i + 1, rlat_i, lvl_i + 1);
+		ws[6] = (1 - wx) * wy * wz; gcs[6] = Vec3i(rlon_i, rlat_i + 1, lvl_i + 1);
+		ws[7] = wx * wy * wz; gcs[7] = Vec3i(rlon_i + 1, rlat_i + 1, lvl_i + 1);
+
+		for (int i = 0; i < 8; ++i) {
+			if (count == 1) {
+				uvw[0] += U->GetVertexDataAt(gcs[i])*ws[i];
+				uvw[1] += V->GetVertexDataAt(gcs[i])*ws[i];
+			}
+			else if (count == 2) {
+				uvw[2] += W->GetVertexDataAt(gcs[i])*ws[i];
+			}
+		}
+
+		//cout << "uvw found at rlon_d " << rlon_d << " rlat_d" << rlat_d << " lvl_d " << lvl_d << endl;
+		//cout << "   is " << uu << " " << vv << " " << ww << endl;
+		//if (count == 1)cout << "UV from lvl_d " << lvl_d << ":   " << uu << " " << vv << endl;
+		//if (count == 2) cout << " W from lvl_d " << lvl_d << ":   " << ww << endl;
+	}
+
+	// rescale to rlon/s rlat/s m/s
+	double lon, lat;
+	CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
+	double dlon, dlat;
+	CoordinateTransform::degreeLengthsSimple(lat, dlat, dlon);
+	if (dlon != 0) uvw[0] /= dlon;
+	else uvw[0] = 0;
+	uvw[1] /= dlat;
+
+	return uvw;
+}
+
 void ImportantPart::setTimestep(double timestep) {
 	dt = timestep;
 	nSteps = ceil((end_t - start_t) / dt);
@@ -201,4 +310,78 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	//--------------------- the end
 	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];
 	std::cout << "Trajectories have been computed\n";
+}
+
+void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarField3f * U, RegScalarField3f * V, RegScalarField3f * W)
+{
+	//--------------------- Initialization
+	// see that data has correct sizes
+	td.data.resize(td.varnames.size());
+	for (int i = 0; i < td.varnames.size(); ++i) {
+		td.data[i].resize(td.num_trajectories*td.points_per_trajectory);
+	}
+
+	// name of the file containing constants (mainly HHL)
+	string constantsfile = basefilename + IntToDDHHMMSS(file_t0) + 'c' + fileending;
+
+	// Not sure if tracer is used ... I'll probably do it "by hand"
+	ParticleTracer<Vec3f, 3> tracer;
+
+	// Helping: Map of level to acutal height in meters
+	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
+
+	// store current position of each trajectory
+	vector<Vec3f> position(td.num_trajectories);
+	for (int i = 0; i < position.size(); ++i) {
+		position[i] = trajectories[i][0];
+	}
+
+	// domain is relevant for checking
+	const BoundingBox3d bb = hhl->GetDomain();//TODO that's probably incorrect
+	BoundingBox<Vec3f> bb_f(Vec3f(bb.GetMin()[0], bb.GetMin()[1], bb.GetMin()[1]), Vec3f(bb.GetMax()[0], bb.GetMax()[1], bb.GetMax()[1]));
+	// and an extra variable to mark the final part where only 2 fields are used
+	bool finalPart = false;
+
+	// Figure out which variables are stored where
+	int rlon_id, rlat_id, z_id, lon_id, lat_id;
+	for (int i = 0; i < td.varnames.size(); ++i) {
+		if (td.varnames[i] == "rlon") rlon_id = i;
+		else if (td.varnames[i] == "rlat") rlat_id = i;
+		else if (td.varnames[i] == "z") z_id = i;
+		else if (td.varnames[i] == "lon") lon_id = i;
+		else if (td.varnames[i] == "lat") lat_id = i;
+	}
+
+	//oh, and write the initial points
+	double lon, lat;
+	for (int i = 0; i < td.num_trajectories; ++i) {
+		td.val(rlon_id, i, 0) = position[i][0];
+		td.val(rlat_id, i, 0) = position[i][1];
+		td.val(z_id, i, 0) = position[i][2];
+		CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
+		td.val(lon_id, i, 0) = lon;
+		td.val(lat_id, i, 0) = lat;
+	}
+
+	//TODO trace
+
+	//cout << "hhl domain: x " << x0 << " to " << x1 << "\ty " << y0 << " to " << y1 << endl;
+	//cout << "    voxelsize " << dx << " " << dy << "\tres " << res_x << " " << res_y << endl;
+
+	for (int traj = 0; traj < 1;++traj) {//TODO for trajectories
+		Vec3d coord = position[0];
+		cout << "coord begin: " << coord[0] << " " << coord[1] << " " << coord[2] << endl;
+		for (double t = td.time_begin; t < td.time_end; t += dt) {//TODO for timesteps
+
+			Vec3f uvw0 = sampleUVWTEST(coord, U, V, W, hhl);
+			Vec3f res = coord;
+			for (int i = 0; i < 3; ++i) {
+				Vec3f uvw1 = sampleUVWTEST(res, U, V, W, hhl);
+				res = coord + (uvw0 + uvw1)*dt*0.5;
+			}
+			coord = res;
+			cout << "coord t "<<t<<": " << coord[0] << " " << coord[1] << " " << coord[2] << endl;
+		}
+	}
+
 }
