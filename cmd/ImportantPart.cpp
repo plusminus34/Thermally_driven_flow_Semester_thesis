@@ -38,8 +38,14 @@ string ImportantPart::IntToDDHHMMSS(int seconds) const {
 
 }
 
+float hhl_gdata(RegScalarField3f* hhl, Vec3i gc) {
+	return 0.5f*(hhl->GetVertexDataAt(gc) + hhl->GetVertexDataAt(gc + Vec3i(0, 0, 1)));
+}
+
 Vec3f ImportantPart::sampleUVWTEST(Vec3d coord, RegScalarField3f * U, RegScalarField3f * V, RegScalarField3f * W, RegScalarField3f* hhl)
 {
+	Vec3f uvw(0, 0, 0);
+
 
 // constants
 const double x0 = hhl->GetDomain().GetMin()[0];
@@ -66,19 +72,23 @@ const double dy = hhl->GetVoxelSize()[1];
 	double lvl_d = 0;
 	{
 		int lvl_0 = 0;
-		int lvl_1 = 80;
+		int lvl_1 = 79;
 		if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0))) lvl_d = -1;
 		if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1))) lvl_d = -1;
 
 		while (lvl_1 > lvl_0 + 1) {
 			int half = (lvl_1 + lvl_0) / 2;
 			//cout << "half " << half << " between " << lvl_1 << " and " << lvl_0 << endl;
-			if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half)) < h)
+			//if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half)) < h)
+			if (hhl_gdata(hhl,Vec3i(rlon_i, rlat_i, half)) < h)
 				lvl_1 = half;
 			else lvl_0 = half;
 		}
-		const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1));
-		const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0));
+		//const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1));
+		//const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0));
+		const float h1 = hhl_gdata(hhl,Vec3i(rlon_i, rlat_i, lvl_1));
+		const float h0 = hhl_gdata(hhl,Vec3i(rlon_i, rlat_i, lvl_0));
+		
 		// and then sample uvw
 		float alpha = (h - h0) / (h1 - h0);
 		Vec3i smp0(rlon_i, rlat_i, lvl_0);
@@ -92,13 +102,13 @@ const double dy = hhl->GetVoxelSize()[1];
 	}
 	//cout << "lvl_d is " << lvl_d << endl;
 
-	Vec3f uvw(0, 0, 0);
+	double wx = w0;
+	double wy = w1;
+
 	double lvl_d_0 = lvl_d;
-	for (int count = 1; count <= 2; ++count) {
+	for (int count = 0; count <= 3; ++count) {
 		lvl_d = lvl_d_0 - count * 0.5;
 		int lvl_i = lvl_d;
-		double wx = rlon_d - rlon_i;
-		double wy = rlat_d - rlat_i;
 		double wz = lvl_d - lvl_i;
 
 		Vec3i gcs[8];
@@ -119,6 +129,7 @@ const double dy = hhl->GetVoxelSize()[1];
 		ws[6] = (1 - wx) * wy * wz; gcs[6] = Vec3i(rlon_i, rlat_i + 1, lvl_i + 1);
 		ws[7] = wx * wy * wz; gcs[7] = Vec3i(rlon_i + 1, rlat_i + 1, lvl_i + 1);
 
+		float uu = 0, vv = 0, ww = 0;
 		for (int i = 0; i < 8; ++i) {
 			if (count == 1) {
 				uvw[0] += U->GetVertexDataAt(gcs[i])*ws[i];
@@ -127,6 +138,9 @@ const double dy = hhl->GetVoxelSize()[1];
 			else if (count == 2) {
 				uvw[2] += W->GetVertexDataAt(gcs[i])*ws[i];
 			}
+			uu += U->GetVertexDataAt(gcs[i])*ws[i];
+			vv += V->GetVertexDataAt(gcs[i])*ws[i];
+			ww += W->GetVertexDataAt(gcs[i])*ws[i];
 		}
 
 		//cout << "uvw found at rlon_d " << rlon_d << " rlat_d" << rlat_d << " lvl_d " << lvl_d << endl;
@@ -135,6 +149,7 @@ const double dy = hhl->GetVoxelSize()[1];
 		//if (count == 2) cout << " W from lvl_d " << lvl_d << ":   " << ww << endl;
 	}
 
+	/*
 	// rescale to rlon/s rlat/s m/s
 	double lon, lat;
 	CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
@@ -143,6 +158,11 @@ const double dy = hhl->GetVoxelSize()[1];
 	if (dlon != 0) uvw[0] /= dlon;
 	else uvw[0] = 0;
 	uvw[1] /= dlat;
+	*/
+	//cout << "uvw unmodified " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
+	float deltay = 111200;
+	uvw[1] /= deltay;
+	uvw[0] /= deltay * cos(coord[1] * 3.1415926535 / 180.0);
 
 	return uvw;
 }
@@ -336,12 +356,6 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarFiel
 		position[i] = trajectories[i][0];
 	}
 
-	// domain is relevant for checking
-	const BoundingBox3d bb = hhl->GetDomain();//TODO that's probably incorrect
-	BoundingBox<Vec3f> bb_f(Vec3f(bb.GetMin()[0], bb.GetMin()[1], bb.GetMin()[1]), Vec3f(bb.GetMax()[0], bb.GetMax()[1], bb.GetMax()[1]));
-	// and an extra variable to mark the final part where only 2 fields are used
-	bool finalPart = false;
-
 	// Figure out which variables are stored where
 	int rlon_id, rlat_id, z_id, lon_id, lat_id;
 	for (int i = 0; i < td.varnames.size(); ++i) {
@@ -366,9 +380,8 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarFiel
 	//cout << "hhl domain: x " << x0 << " to " << x1 << "\ty " << y0 << " to " << y1 << endl;
 	//cout << "    voxelsize " << dx << " " << dy << "\tres " << res_x << " " << res_y << endl;
 
-	for (int traj = 0; traj < 1;++traj) {
-		Vec3d coord = position[0];
-		cout << "coord begin: " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
+	for (int traj = 0; traj < position.size();++traj) {
+		cout << "coord "<<traj<<" begin: " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
 		int step_i = 1;
 		for (double t = td.time_begin; t < td.time_end; t += dt) {
 
@@ -376,18 +389,23 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarFiel
 			Vec3f res = position[traj];
 			for (int i = 0; i < 3; ++i) {
 				Vec3f uvw1 = sampleUVWTEST(res, U, V, W, hhl);
-				res = position[traj] + (uvw0 + uvw1)*dt*0.5;
+				Vec3f uvw = (uvw0 + uvw1)*0.5;
+				res = position[traj] + uvw*dt;
+				//cout << "p0 " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
+				//cout << "uvw " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
+				cout << "p1 " << res[0] << " " << res[1] << " " << res[2] << endl;
 			}
 			position[traj] = res;
-			//cout << "coord t "<<t<<": " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
 			td.val(rlon_id, traj, step_i) = position[traj][0];
 			td.val(rlat_id, traj, step_i) = position[traj][1];
 			td.val(z_id, traj, step_i) = position[traj][2];
 			CoordinateTransform::RlatRlonToLatLon(position[traj][1], position[traj][0], lat, lon);
 			td.val(lon_id, traj, step_i) = lon;
 			td.val(lat_id, traj, step_i) = lat;
+			//cout << "coord t " << t + dt << ": " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
+			cout << "coord t " << t + dt << " lonlat: " << lon << " " << lat << " " << position[traj][2] << endl;
 			++step_i;
 		}
 	}
-
+	cout << "jo\n";
 }

@@ -55,27 +55,30 @@ int main(int argc, char *argv[])
 		//Vec3d coord(0, 0, 4000);
 
 		ImportantPart imp;
-		int nPaths = 1;
+		int nPaths = 4;
 
 		TrajectoryData td;
 		td.num_trajectories = nPaths;
-		td.points_per_trajectory = 61;
 		td.time_begin = 0;
 		td.time_end = 3600;
+		imp.setTimeBoundaries(td.time_begin, td.time_end);
+		imp.setTimestep(60.0);
+		td.points_per_trajectory = 61;
 		td.varnames = { "rlon", "rlat", "z", "lon", "lat" };
 
 		string basefile = path;
 		basefile = basefile.substr(0, basefile.size() - 11);
 		imp.setBaseFileName(basefile);
 
-		imp.setTimeBoundaries(td.time_begin, td.time_end);
-		imp.setTimestep(60);
 
 		imp.trajectories.resize(nPaths);
 		for (int path = 0; path < nPaths; ++path) {
 			imp.trajectories[path].resize(1);
-			imp.trajectories[path][0] = coord;
 		}
+		imp.trajectories[0][0] = Vec3d(-2.08377838, -0.960101426, 4000);
+		imp.trajectories[1][0] = Vec3d(-2.04549885, 0.0391660146, 4000);
+		imp.trajectories[2][0] = Vec3d(-1.38938272, -0.982265174, 4000);
+		imp.trajectories[3][0] = Vec3d(-1.36385620, 0.0174084455, 4000);
 
 		// Do the important part
 		imp.computeTrajectoryDataTEST(td, U, V, W);
@@ -83,7 +86,7 @@ int main(int argc, char *argv[])
 		NetCDF::WriteTrajectoryData("trajectory_TEST.nc", td);
 		int lon_id = td.get_var_id("lon");
 		for (int i = 0; i < 10; ++i) {
-			cout << "tdi " << i << ": " << td.val(lon_id, 0, i) << endl;
+		//	cout << "tdi " << i << ": " << td.val(lon_id, 0, i) << endl;
 		}
 
 
