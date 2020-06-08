@@ -28,20 +28,67 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
-		double rlonmin = -6, rlonmax = 4, rlatmin = -4, rlatmax = 3;
-		int ii = 5, jj = 5;
-		for (int i = 0; i < ii; ++i) {
-			for (int j = 0; j < jj; ++j) {
-				double rlon = rlonmin + ((double)i / ii)*(rlonmax - rlonmin);
-				double rlat = rlatmin + ((double)j / jj)*(rlatmax - rlatmin);
-				double lon, lat;
-				CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
-				cout << "(rlat,rlon) (" << rlat << ", " << rlon << ")   ==>   (lat,lon) (" << lat << ", " << lon << ")\n";
-				CoordinateTransform::LatLonToRlanRlon(lat, lon, rlat, rlon);
-				cout << " back: (lat,lon) (" << lat << ", " << lon << ")   ==>   (rlat,rlon) (" << rlat << ", " << rlon << ")\n";
+		std::string path(argv[1]);
+		RegScalarField3f* U = nullptr;
+		RegScalarField3f* V = nullptr;
+		RegScalarField3f* W = nullptr;
+		SeparateUVWFromNCFile(path, U, V, W);
+		assert(U != nullptr);
+		assert(U);
+		Vec3i dim = U->GetResolution();
+		cout << "U dim: " << dim[0] << " " << dim[1] << " " << dim[2] << endl;
+		dim = V->GetResolution();
+		cout << "V dim: " << dim[0] << " " << dim[1] << " " << dim[2] << endl;
+		dim = W->GetResolution();
+		cout << "W dim: " << dim[0] << " " << dim[1] << " " << dim[2] << endl;
+		Vec3i wo(111, 111, 33);
+		cout << "at ijk " << wo[0] << " " << wo[1] << " " << wo[2] << endl;
+		cout << "  U " << U->GetVertexDataAt(wo)<<endl;
+		cout << "  V " << V->GetVertexDataAt(wo) << endl;
+		cout << "  W " << W->GetVertexDataAt(wo) << endl;
 
-			}
+		//TODO  test-integrator similar to input 2
+
+
+		Vec3d coord(-2.08377838, -0.960101426, 4000);
+		//Vec3d coord(-2.04549885, 0.0391660146, 4000);
+		//Vec3d coord(0, 0, 4000);
+
+		ImportantPart imp;
+		int nPaths = 4;
+
+		TrajectoryData td;
+		td.num_trajectories = nPaths;
+		td.time_begin = 0;
+		td.time_end = 3600;
+		imp.setTimeBoundaries(td.time_begin, td.time_end);
+		imp.setTimestep(60.0);
+		td.points_per_trajectory = 61;
+		td.varnames = { "rlon", "rlat", "z", "lon", "lat" };
+
+		string basefile = path;
+		basefile = basefile.substr(0, basefile.size() - 11);
+		imp.setBaseFileName(basefile);
+
+
+		imp.trajectories.resize(nPaths);
+		for (int path = 0; path < nPaths; ++path) {
+			imp.trajectories[path].resize(1);
 		}
+		imp.trajectories[0][0] = Vec3d(-2.08377838, -0.960101426, 4000);
+		imp.trajectories[1][0] = Vec3d(-2.04549885, 0.0391660146, 4000);
+		imp.trajectories[2][0] = Vec3d(-1.38938272, -0.982265174, 4000);
+		imp.trajectories[3][0] = Vec3d(-1.36385620, 0.0174084455, 4000);
+
+		// Do the important part
+		imp.computeTrajectoryDataTEST(td, U, V, W);
+
+		NetCDF::WriteTrajectoryData("trajectory_TEST.nc", td);
+		int lon_id = td.get_var_id("lon");
+		for (int i = 0; i < 10; ++i) {
+		//	cout << "tdi " << i << ": " << td.val(lon_id, 0, i) << endl;
+		}
+
 
 		return 0;
 	}
@@ -101,7 +148,7 @@ int main(int argc, char *argv[])
 					}
 					catch (const string& str) {}
 				}
-				cout << "Choose which " << more << " to use\nNOTE: they will not actually be written down> ";
+				cout << "Choose which " << more << " to use> ";
 				for (int i = 0; i < more; ++i) {
 					cin >> extra_variables[i];
 				}
@@ -168,17 +215,7 @@ int main(int argc, char *argv[])
 		}
 		points_file.close();
 
-		RegVectorField3f* field = UVWFromVTIFile("UVW.vti");
-		cout << "Read UVW\n";
-		double bounds[6];
-		for (int i = 0; i < 3; ++i) {
-			bounds[2 * i] = field->GetDomain().GetMin()[i];
-			bounds[2 * i + 1] = field->GetDomain().GetMax()[i];
-		}
-		//cout << "Bounds: x " << bounds[0] << " - " << bounds[1] << "\ty " << bounds[2] << " - " << bounds[3] << "\t z " << bounds[4] << " - " << bounds[5] << endl;
-		imp.helpWithStuff(field);
-		delete field;
-
+		// Do the important part
 		imp.computeTrajectoryData(td);
 
 		NetCDF::WriteTrajectoryData("trajectory_" + name + ".nc", td);

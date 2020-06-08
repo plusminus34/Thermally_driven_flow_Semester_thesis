@@ -61,4 +61,26 @@ public:
 		}
 		return start + (k1 + k2 * 2 + k3 * 2 + k4) * (dt / 6.0);
 	}
+
+	// between field0 at t0 and field1 at t1 using Explicit Euler instead of Runge-Kutta
+	TValueType traceParticleEE(const field_t& field0, double t0, const field_t& field1, double t1, const TValueType& start, double start_t, float dt) {
+		const double iT = 1.0 / (t1 - t0);
+		const double t_a = (start_t - t0) * iT;
+		TValueType v = field0.Sample(start) * (1 - t_a) + field1.Sample(start) * t_a;
+		return start + v * dt;
+	}
+
+	// Lagranto actually uses an iterative Euler scheme (nIter=2 for explicit trapezoidal)
+	TValueType traceParticleIterativeEuler(const field_t& field0, double t0, const field_t& field1, double t1, const TValueType& start, double start_t, float dt, int nIter) {
+		const double iT = 1.0 / (t1 - t0);
+		const double t_a = (start_t - t0) * iT;
+		const double t_b = (start_t + dt - t0) * iT;
+		TValueType v0 = field0.Sample(start) * (1 - t_a) + field1.Sample(start) * t_a;
+		TValueType res = start;
+		for (int i = 0; i < nIter; ++i) {
+			TValueType v1 = field0.Sample(res) * (1 - t_b) + field1.Sample(res) * t_b;
+			res = start + (v0 + v1)*dt*0.5;
+		}
+		return res;
+	}
 };
