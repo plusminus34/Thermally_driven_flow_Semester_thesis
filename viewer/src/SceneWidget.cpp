@@ -121,7 +121,7 @@ void SceneWidget::CreateTestScene()
 	// Settings
 
 	bool build_landscape = false;// TODO check if file exists automatically
-	bool use_rotated = true;
+	bool use_rotated = true;//use rlonrlat (if false, lonlat are used)
 
 	// display surface
 	vtkNew<vtkPolyDataMapper> landscapeMapper;
@@ -175,8 +175,8 @@ void SceneWidget::CreateTestScene()
 	
 	//string file_1 = "../../../outputs/lagranto_demo_605.nc";
 	//string file_2 = "../../../outputs/trajectory_demo_605.nc";
-	string file_1 = "../../../outputs/lag_trajectory_spread_dense.nc";
-	string file_2 = "../../../outputs/imp_trajectory_spread_dense.nc";
+	string file_1 = "../../../outputs/testoutput.4";
+	string file_2 = "../../../outputs/trajectory_TEST.nc";
 	
 	TrajectoryData td;
 	NetCDF::ReadTrajectoryData(file_1, td);
@@ -298,7 +298,7 @@ void SceneWidget::CreateTestScene()
 	}
 
 	renderer->AddActor(landscapeActor);
-	int inc = 5;
+	int inc = 1;
 	for (int i = 0; i < paths.size(); i+=inc) {
 		//renderer->AddActor(createLineActor(paths[i], pathColors[i]));
 		renderer->AddActor(createTrajectoryActor(td, i, use_rotated, 1));
@@ -306,6 +306,47 @@ void SceneWidget::CreateTestScene()
 	for (int i = 0; i < paths2.size(); i+=inc) {
 		//renderer->AddActor(createLineActor(paths2[i], pathColors2[i]));
 		renderer->AddActor(createTrajectoryActor(td2, i, use_rotated));
+	}
+
+	{
+		vtkNew<vtkPoints> points;
+		for (int i = 0; i < 256; ++i) {
+			points->InsertNextPoint(cos(i*0.05), sin(i*0.05), i*0.01);
+		}
+
+		vtkNew<vtkPolyLine> polyLine;
+		polyLine->GetPointIds()->SetNumberOfIds(points->GetNumberOfPoints());
+		for (unsigned int i = 0; i < points->GetNumberOfPoints(); i++)
+			polyLine->GetPointIds()->SetId(i, i);
+
+		vtkNew<vtkCellArray> cells;
+		cells->InsertNextCell(polyLine);
+
+		vtkNew<vtkPolyData> polyData;
+		polyData->SetPoints(points);	// Add the points to the dataset
+		polyData->SetLines(cells);			// Add the lines to the dataset
+
+		vtkNew<vtkUnsignedCharArray> colors;
+		colors->SetName("Dolores");
+		colors->SetNumberOfComponents(3);
+		colors->SetNumberOfTuples(points->GetNumberOfPoints());
+		for (int i = 0; i < colors->GetNumberOfTuples(); ++i) {
+			colors->InsertTuple3(i, i, 255 - i * i / 255, 255-i*i/255);
+		}
+		polyData->GetPointData()->AddArray(colors);
+
+		vtkNew<vtkPolyDataMapper> mapper;
+		mapper->SetInputData(polyData);
+		mapper->ScalarVisibilityOn();
+		mapper->SetScalarModeToUsePointFieldData();
+		mapper->SelectColorArray("Dolores");
+
+		vtkNew<vtkActor> actor;
+		actor->SetMapper(mapper);
+		//actor->GetProperty()->SetColor(0.9 - 0.7*nix, 0.7*nix, 0.2 + 0.2*nix);//(nix, 0.5*trajectory_id / td.num_trajectories, val/td.min_values[jojo]);
+		actor->GetProperty()->SetLineWidth(3);
+
+		renderer->AddActor(actor);
 	}
 
 	GetRenderWindow()->AddRenderer(renderer);
