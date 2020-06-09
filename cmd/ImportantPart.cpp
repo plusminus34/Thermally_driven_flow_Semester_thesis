@@ -3,6 +3,7 @@
 #include <iostream>
 #include "ImportantPart.hpp"
 #include "core/NetCDF.hpp"
+#include "core/LagrantoUVW.hpp"
 
 ImportantPart::ImportantPart(): trajectories(1) {
 	basefilename = "lfff";//followed by DDHHMMSS, possibly 'c', and .nc
@@ -36,148 +37,6 @@ string ImportantPart::IntToDDHHMMSS(int seconds) const {
 	if (seconds < 10) res += "0"; res += to_string(seconds);
 	return res;
 
-}
-
-float hhl_gdata(RegScalarField3f* hhl, Vec3i gc) {
-	return 0.5f*(hhl->GetVertexDataAt(gc) + hhl->GetVertexDataAt(gc + Vec3i(0, 0, 1)));
-}
-
-Vec3f ImportantPart::sampleUVWTEST(Vec3d coord, RegScalarField3f * U, RegScalarField3f * V, RegScalarField3f * W, RegScalarField3f* hhl)
-{
-	Vec3f uvw(0, 0, 0);
-
-
-// constants
-const double x0 = hhl->GetDomain().GetMin()[0];
-const double x1 = hhl->GetDomain().GetMax()[0];
-const double y0 = hhl->GetDomain().GetMin()[1];
-const double y1 = hhl->GetDomain().GetMax()[1];
-const int res_x = hhl->GetResolution()[0];
-const int res_y = hhl->GetResolution()[1];
-const double dx = hhl->GetVoxelSize()[0];
-const double dy = hhl->GetVoxelSize()[1];
-
-	double rlon_d = (coord[0] - x0) / (x1 - x0) * (res_x - 1);
-	double rlat_d = (coord[1] - y0) / (y1 - y0) * (res_y - 1);
-	int rlon_i = std::min(std::max(0, (int)std::floor(rlon_d)), res_x - 1);
-	int rlat_i = std::min(std::max(0, (int)std::floor(rlat_d)), res_y - 1);
-	double w0 = rlon_d - rlon_i;
-	double w1 = rlat_d - rlat_i;
-
-	//cout << "point " << coord[0] << " " << coord[1] << " " << coord[2] << endl;
-	//cout << " has rlon_i, rlat_i " << rlon_i << ", " << rlat_i << endl;
-	//cout << " and rlon_d, rlat_d " << rlon_d << ", " << rlat_d << endl;
-
-	double h = coord[2];
-	double lvl_d[2];//[0] rlon,rlat,level	[1] rlon,rlat,level1
-	for (int stag = 0; stag < 2;++stag) {
-		int lvl_0 = 0;
-		int lvl_1 = 79 + stag;
-
-		float h0, h1, hh;
-
-		if (stag == 1) {
-			h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0));
-			h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1));
-		}
-		else {
-			h0 = hhl_gdata(hhl, Vec3i(rlon_i, rlat_i, lvl_0));
-			h1 = hhl_gdata(hhl, Vec3i(rlon_i, rlat_i, lvl_1));
-		}
-
-		if (h > h0) lvl_d[stag] = -1;
-		if (h < h1) lvl_d[stag] = -1;
-
-		while (lvl_1 > lvl_0 + 1) {
-			int half = (lvl_1 + lvl_0) / 2;
-			//cout << "half " << half << " between " << lvl_1 << " and " << lvl_0 << endl;
-			if (stag == 1) hh = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half));
-			else hh = hhl_gdata(hhl, Vec3i(rlon_i, rlat_i, half));
-			if (hh < h) {
-				lvl_1 = half;
-				h1 = hh;
-			}
-			else {
-				lvl_0 = half;
-				h0 = hh;
-			}
-		}
-		
-		float alpha = (h - h0) / (h1 - h0);
-		Vec3i smp0(rlon_i, rlat_i, lvl_0);
-		Vec3i smp1(rlon_i, rlat_i, lvl_1);
-		//cout << "localized: h " << h << " belongs between h0 and h1 " << h0 << " " << h1 << endl;
-		//cout << "   which means level1s " << lvl_0 << " " << lvl_1 << endl;
-		lvl_d[stag] = lvl_0 + alpha;
-	}
-	// The fact that these make the result more Lagranto-like is worrying
-	lvl_d[0] -= 0.5;
-	lvl_d[1] -= 1.5;
-
-	double wx = w0;
-	double wy = w1;
-
-	for (int stag = 0; stag < 2; ++stag) {
-		//lvl_d = lvl_d_0 - count * 0.5;
-		cout << "lvl_d[" << stag << "] : " << lvl_d[stag];
-		cout << "     80-lvld: " << 80 - lvl_d[stag] << endl;
-		int lvl_i = lvl_d[stag];
-		double wz = lvl_d[stag] - lvl_i;
-
-		Vec3i gcs[8];
-		double ws[8];
-		for (int i = 0; i < 2; ++i) {
-			for (int j = 0; j < 2; ++j) {
-				for (int k = 0; k < 2; ++k) {
-					ws[4 * i + 2 * j + k] = 0;
-				}
-			}
-		}
-		ws[0] = (1 - wx) * (1 - wy) * (1 - wz); gcs[0] = Vec3i(rlon_i, rlat_i, lvl_i);
-		ws[1] = wx * (1 - wy) * (1 - wz); gcs[1] = Vec3i(rlon_i + 1, rlat_i, lvl_i);
-		ws[2] = (1 - wx) * wy * (1 - wz); gcs[2] = Vec3i(rlon_i, rlat_i + 1, lvl_i);
-		ws[3] = wx * wy * (1 - wz); gcs[3] = Vec3i(rlon_i + 1, rlat_i + 1, lvl_i);
-		ws[4] = (1 - wx) * (1 - wy) * wz; gcs[4] = Vec3i(rlon_i, rlat_i, lvl_i + 1);
-		ws[5] = wx * (1 - wy) * wz; gcs[5] = Vec3i(rlon_i + 1, rlat_i, lvl_i + 1);
-		ws[6] = (1 - wx) * wy * wz; gcs[6] = Vec3i(rlon_i, rlat_i + 1, lvl_i + 1);
-		ws[7] = wx * wy * wz; gcs[7] = Vec3i(rlon_i + 1, rlat_i + 1, lvl_i + 1);
-
-		float uu = 0, vv = 0, ww = 0;
-		for (int i = 0; i < 8; ++i) {
-			if (stag == 0) {
-				uvw[0] += U->GetVertexDataAt(gcs[i])*ws[i];
-				uvw[1] += V->GetVertexDataAt(gcs[i])*ws[i];
-			}
-			else if (stag == 1) {
-				uvw[2] += W->GetVertexDataAt(gcs[i])*ws[i];
-			}
-			uu += U->GetVertexDataAt(gcs[i])*ws[i];
-			vv += V->GetVertexDataAt(gcs[i])*ws[i];
-			ww += W->GetVertexDataAt(gcs[i])*ws[i];
-		}
-
-		//cout << "uvw found at rlon_d " << rlon_d << " rlat_d" << rlat_d << " lvl_d " << lvl_d << endl;
-		//cout << "   is " << uu << " " << vv << " " << ww << endl;
-		//if (count == 1)cout << "UV from lvl_d " << lvl_d << ":   " << uu << " " << vv << endl;
-		//if (count == 2) cout << " W from lvl_d " << lvl_d << ":   " << ww << endl;
-	}
-
-	/*
-	// rescale to rlon/s rlat/s m/s
-	double lon, lat;
-	CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
-	double dlon, dlat;
-	CoordinateTransform::degreeLengthsSimple(lat, dlat, dlon);
-	if (dlon != 0) uvw[0] /= dlon;
-	else uvw[0] = 0;
-	uvw[1] /= dlat;
-	*/
-	cout << "uvw unmodified " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
-	float deltay = 111200;
-	uvw[1] /= deltay;
-	uvw[0] /= deltay * cos(coord[1] * 3.1415926535 / 180.0);
-
-	return uvw;
 }
 
 void ImportantPart::setTimestep(double timestep) {
@@ -345,7 +204,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	std::cout << "Trajectories have been computed\n";
 }
 
-void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarField3f * U, RegScalarField3f * V, RegScalarField3f * W)
+void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td)
 {
 	//--------------------- Initialization
 	// see that data has correct sizes
@@ -362,6 +221,8 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarFiel
 
 	// Helping: Map of level to acutal height in meters
 	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
+
+	LagrantoUVW luv(basefilename + IntToDDHHMMSS(file_t0) + fileending, hhl);
 
 	// store current position of each trajectory
 	vector<Vec3f> position(td.num_trajectories);
@@ -394,19 +255,21 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarFiel
 	//cout << "    voxelsize " << dx << " " << dy << "\tres " << res_x << " " << res_y << endl;
 
 	for (int traj = 0; traj < position.size();++traj) {
-		cout << "coord "<<traj<<" begin: " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
+		//cout << "coord "<<traj<<" begin: " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
 		int step_i = 1;
 		for (double t = td.time_begin; t < td.time_end; t += dt) {
 
-			Vec3f uvw0 = sampleUVWTEST(position[traj], U, V, W, hhl);
+			//Vec3f uvw0 = sampleUVWTEST(position[traj], U, V, W, hhl);
+			Vec3f uvw0 = luv.Sample(position[traj]);
 			Vec3f res = position[traj];
 			for (int i = 0; i < 3; ++i) {
-				Vec3f uvw1 = sampleUVWTEST(res, U, V, W, hhl);
+				//Vec3f uvw1 = sampleUVWTEST(res, U, V, W, hhl);
+				Vec3f uvw1 = luv.Sample(res);
 				Vec3f uvw = (uvw0 + uvw1)*0.5;
 				res = position[traj] + uvw*dt;
 				//cout << "p0 " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
 				//cout << "uvw " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
-				cout << "p1 " << res[0] << " " << res[1] << " " << res[2] << endl;
+				//cout << "p1 " << res[0] << " " << res[1] << " " << res[2] << endl;
 			}
 			position[traj] = res;
 			td.val(rlon_id, traj, step_i) = position[traj][0];
@@ -416,9 +279,8 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td, RegScalarFiel
 			td.val(lon_id, traj, step_i) = lon;
 			td.val(lat_id, traj, step_i) = lat;
 			//cout << "coord t " << t + dt << ": " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
-			cout << "coord t " << t + dt << " lonlat: " << lon << " " << lat << " " << position[traj][2] << endl;
+			//cout << "coord t " << t + dt << " lonlat: " << lon << " " << lat << " " << position[traj][2] << endl;
 			++step_i;
 		}
 	}
-	cout << "jo\n";
 }

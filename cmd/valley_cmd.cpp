@@ -32,20 +32,7 @@ int main(int argc, char *argv[])
 		RegScalarField3f* U = nullptr;
 		RegScalarField3f* V = nullptr;
 		RegScalarField3f* W = nullptr;
-		SeparateUVWFromNCFile(path, U, V, W);
-		assert(U != nullptr);
-		assert(U);
-		Vec3i dim = U->GetResolution();
-		cout << "U dim: " << dim[0] << " " << dim[1] << " " << dim[2] << endl;
-		dim = V->GetResolution();
-		cout << "V dim: " << dim[0] << " " << dim[1] << " " << dim[2] << endl;
-		dim = W->GetResolution();
-		cout << "W dim: " << dim[0] << " " << dim[1] << " " << dim[2] << endl;
-		Vec3i wo(111, 111, 33);
-		cout << "at ijk " << wo[0] << " " << wo[1] << " " << wo[2] << endl;
-		cout << "  U " << U->GetVertexDataAt(wo)<<endl;
-		cout << "  V " << V->GetVertexDataAt(wo) << endl;
-		cout << "  W " << W->GetVertexDataAt(wo) << endl;
+		//SeparateUVWFromNCFile(path, U, V, W);
 
 		//TODO  test-integrator similar to input 2
 
@@ -81,7 +68,7 @@ int main(int argc, char *argv[])
 		imp.trajectories[3][0] = Vec3d(-1.36385620, 0.0174084455, 4000);
 
 		// Do the important part
-		imp.computeTrajectoryDataTEST(td, U, V, W);
+		imp.computeTrajectoryDataTEST(td);
 		cout << "mostly done, write now\n";
 
 		NetCDF::WriteTrajectoryData("trajectory_TEST.nc", td);
