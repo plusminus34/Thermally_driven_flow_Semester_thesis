@@ -37,6 +37,8 @@ void SceneWidget::CreateTestScene()
 	bool build_landscape = false;// TODO check if file exists automatically
 	bool use_rotated = false;//use rlonrlat (if false, lonlat are used)
 
+	int line_limit = 100;
+
 	// display surface
 	vtkNew<vtkPolyDataMapper> landscapeMapper;
 	if (build_landscape) {
@@ -88,10 +90,29 @@ void SceneWidget::CreateTestScene()
 	landscapeActor->SetMapper(landscapeMapper);
 
 	vector<string> files(0);
-	files.push_back("../../../outputs/trajectory_TEST_correctish.nc");
-	files.push_back("../../../outputs/lag_TEST.4");
-	//files.push_back("../../../outputs/trajectory_demo_605.nc");
-	//files.push_back("../../../outputs/testoutput.4");
+
+	int r[] = { 255,0,0 };
+	int g[] = { 0,255,0 };
+	int b[] = { 0,0,255 };
+	float thickness[] = { 1,2,3 };
+
+	int lalala = 2;
+	if (lalala == 0) {
+		files.push_back("../../../outputs/trajectory_TEST_correctish.nc");
+		files.push_back("../../../outputs/lag_TEST.4");
+		thickness[0] = thickness[1] = 2;
+	}else if(lalala == 1) {
+		files.push_back("../../../outputs/trajectory_Lcomparison_const.nc");
+		files.push_back("../../../outputs/trajectory_comparison_const.nc");
+		files.push_back("../../../outputs/trajectory_Lcomparison_const.4");
+	}
+	else if (lalala == 2) {
+		line_limit = 10;
+		files.push_back("../../../outputs/trajectory_comparison.nc");
+		files.push_back("../../../outputs/trajectory_Lcomparison.4");
+		files.push_back("../../../outputs/trajectory_Lcomparison.nc");
+		thickness[0] = thickness[2] = 1.5f;
+	}
 	
 	vtkNew<vtkNamedColors> colors;
 
@@ -131,6 +152,7 @@ void SceneWidget::CreateTestScene()
 		colors->SetNumberOfComponents(3);
 		colors->SetNumberOfTuples(td.num_trajectories*td.points_per_trajectory);
 
+		int count =0;
 		for (int i = 0; i < td.num_trajectories; ++i) {
 			for (int j = 0; j < td.points_per_trajectory; ++j) {
 				//points->InsertNextPoint(i, j, i*j);
@@ -143,16 +165,17 @@ void SceneWidget::CreateTestScene()
 				//float sat = (td.val(hum_id, i, j) - td.min_values[hum_id]) / (td.max_values[hum_id] - td.min_values[hum_id]);
 				int ij = i * td.points_per_trajectory + j;
 				//colors->InsertTuple3(ij, (int)(100 + 155 * sat), (int)(150 - 140 * sat), (int)(255 - 255 * sat));
-				colors->InsertTuple3(ij, 100*file_i, 255*j/td.points_per_trajectory, 255*i/td.num_trajectories);
+				//colors->InsertTuple3(ij, 100*file_i, 100+5*j/td.points_per_trajectory, 5*i/td.num_trajectories);
 				//colors->InsertTuple3(ij, 100 * file_i, 240-100*file_i, 20);
 				//colors->InsertTuple3(ij, td.val(T_id, i, j)-100, 20 * j / td.points_per_trajectory, 25 * i / td.num_trajectories);
 				//colors->InsertTuple3(ij, 200*file_i, 255 - 250*file_i, 255);
+				colors->InsertTuple3(ij, r[file_i], g[file_i], b[file_i]);
 			}
 		}
 		//size_t nPts = points->GetNumberOfPoints();
 
 		vtkNew<vtkCellArray> cells;
-		for (int i = 0; i < td.num_trajectories; ++i) {
+		for (int i = 0; i < line_limit && i < td.num_trajectories; ++i) {
 			vtkNew<vtkPolyLine> polyLine;
 			polyLine->GetPointIds()->SetNumberOfIds(td.points_per_trajectory);
 			for (unsigned int j = 0; j < td.points_per_trajectory; j++)
@@ -175,7 +198,7 @@ void SceneWidget::CreateTestScene()
 
 		vtkNew<vtkActor> actor;
 		actor->SetMapper(mapper);
-		actor->GetProperty()->SetLineWidth(3);
+		actor->GetProperty()->SetLineWidth(thickness[file_i]);
 
 		renderer->AddActor(actor);
 	}
