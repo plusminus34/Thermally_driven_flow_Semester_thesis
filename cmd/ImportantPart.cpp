@@ -69,47 +69,60 @@ const double dy = hhl->GetVoxelSize()[1];
 	//cout << " and rlon_d, rlat_d " << rlon_d << ", " << rlat_d << endl;
 
 	double h = coord[2];
-	double lvl_d = 0;
-	{
+	double lvl_d[2];//[0] rlon,rlat,level	[1] rlon,rlat,level1
+	for (int stag = 0; stag < 2;++stag) {
 		int lvl_0 = 0;
-		int lvl_1 = 79;
-		if (h > hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0))) lvl_d = -1;
-		if (h < hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1))) lvl_d = -1;
+		int lvl_1 = 79 + stag;
+
+		float h0, h1, hh;
+
+		if (stag == 1) {
+			h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0));
+			h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1));
+		}
+		else {
+			h0 = hhl_gdata(hhl, Vec3i(rlon_i, rlat_i, lvl_0));
+			h1 = hhl_gdata(hhl, Vec3i(rlon_i, rlat_i, lvl_1));
+		}
+
+		if (h > h0) lvl_d[stag] = -1;
+		if (h < h1) lvl_d[stag] = -1;
 
 		while (lvl_1 > lvl_0 + 1) {
 			int half = (lvl_1 + lvl_0) / 2;
 			//cout << "half " << half << " between " << lvl_1 << " and " << lvl_0 << endl;
-			//if (hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half)) < h)
-			if (hhl_gdata(hhl,Vec3i(rlon_i, rlat_i, half)) < h)
+			if (stag == 1) hh = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, half));
+			else hh = hhl_gdata(hhl, Vec3i(rlon_i, rlat_i, half));
+			if (hh < h) {
 				lvl_1 = half;
-			else lvl_0 = half;
+				h1 = hh;
+			}
+			else {
+				lvl_0 = half;
+				h0 = hh;
+			}
 		}
-		//const float h1 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_1));
-		//const float h0 = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_0));
-		const float h1 = hhl_gdata(hhl,Vec3i(rlon_i, rlat_i, lvl_1));
-		const float h0 = hhl_gdata(hhl,Vec3i(rlon_i, rlat_i, lvl_0));
 		
-		// and then sample uvw
 		float alpha = (h - h0) / (h1 - h0);
 		Vec3i smp0(rlon_i, rlat_i, lvl_0);
 		Vec3i smp1(rlon_i, rlat_i, lvl_1);
 		//cout << "localized: h " << h << " belongs between h0 and h1 " << h0 << " " << h1 << endl;
 		//cout << "   which means level1s " << lvl_0 << " " << lvl_1 << endl;
-		double res = 0;
-		if (lvl_0 > 0) res += hhl->GetVertexDataAt(smp0)*(1 - alpha);
-		if (lvl_1 < hhl->GetResolution()[2]) res += hhl->GetVertexDataAt(smp1)*alpha;
-		lvl_d = lvl_0 + alpha;
+		lvl_d[stag] = lvl_0 + alpha;
 	}
-	//cout << "lvl_d is " << lvl_d << endl;
+	// The fact that these make the result more Lagranto-like is worrying
+	lvl_d[0] -= 0.5;
+	lvl_d[1] -= 1.5;
 
 	double wx = w0;
 	double wy = w1;
 
-	double lvl_d_0 = lvl_d;
-	for (int count = 0; count <= 3; ++count) {
-		lvl_d = lvl_d_0 - count * 0.5;
-		int lvl_i = lvl_d;
-		double wz = lvl_d - lvl_i;
+	for (int stag = 0; stag < 2; ++stag) {
+		//lvl_d = lvl_d_0 - count * 0.5;
+		cout << "lvl_d[" << stag << "] : " << lvl_d[stag];
+		cout << "     80-lvld: " << 80 - lvl_d[stag] << endl;
+		int lvl_i = lvl_d[stag];
+		double wz = lvl_d[stag] - lvl_i;
 
 		Vec3i gcs[8];
 		double ws[8];
@@ -131,11 +144,11 @@ const double dy = hhl->GetVoxelSize()[1];
 
 		float uu = 0, vv = 0, ww = 0;
 		for (int i = 0; i < 8; ++i) {
-			if (count == 1) {
+			if (stag == 0) {
 				uvw[0] += U->GetVertexDataAt(gcs[i])*ws[i];
 				uvw[1] += V->GetVertexDataAt(gcs[i])*ws[i];
 			}
-			else if (count == 2) {
+			else if (stag == 1) {
 				uvw[2] += W->GetVertexDataAt(gcs[i])*ws[i];
 			}
 			uu += U->GetVertexDataAt(gcs[i])*ws[i];
@@ -159,7 +172,7 @@ const double dy = hhl->GetVoxelSize()[1];
 	else uvw[0] = 0;
 	uvw[1] /= dlat;
 	*/
-	//cout << "uvw unmodified " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
+	cout << "uvw unmodified " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
 	float deltay = 111200;
 	uvw[1] /= deltay;
 	uvw[0] /= deltay * cos(coord[1] * 3.1415926535 / 180.0);

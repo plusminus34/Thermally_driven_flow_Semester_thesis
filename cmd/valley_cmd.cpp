@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
 
 		// Do the important part
 		imp.computeTrajectoryDataTEST(td, U, V, W);
+		cout << "mostly done, write now\n";
 
 		NetCDF::WriteTrajectoryData("trajectory_TEST.nc", td);
 		int lon_id = td.get_var_id("lon");
