@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "UVWReader.hpp"
+#include "core/TimeRelatedFields.hpp"
 
 template<typename TValueType, size_t TDimensions>
 class ParticleTracer {
@@ -18,6 +19,7 @@ public:
 		return start + (k1 + k2 * 2 + k3 * 2 + k4) * (dt / 6.0);
 	}
 
+	//TODO replace this and the following by variants using TimeRelatedFields
 	//between field0 at t0 and field1 at t1
 	TValueType traceParticle(const field_t& field0, double t0, const field_t& field1, double t1, const TValueType& start, double start_t, float dt) {
 		const double iT = 1.0/ (t1 - t0);
