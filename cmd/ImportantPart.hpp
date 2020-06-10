@@ -13,8 +13,7 @@ public:
 	ImportantPart();
 
 	// Where trajectories are computed
-	void doStuff();
-	void computeTrajectoryData(TrajectoryData& td);
+	void computeTrajectoryData(TrajectoryData& td, bool lagrantostyle = false);
 	void computeTrajectoryDataTEST(TrajectoryData& td);
 
 	// Set parameters

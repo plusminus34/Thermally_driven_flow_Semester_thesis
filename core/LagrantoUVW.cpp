@@ -44,8 +44,7 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 		h0 = sampleHHL(rlon_d, rlat_d, lvl_0, !stag);
 		h1 = sampleHHL(rlon_d, rlat_d, lvl_1, !stag);
 
-		if (h > h0) lvl_d[stag] = -1;
-		if (h < h1) lvl_d[stag] = -1;
+		if (h > h0 || h < h1) return Vec3f(0, 0, 0);
 
 		while (lvl_1 > lvl_0 + 1) {
 			int half = (lvl_1 + lvl_0) / 2;
@@ -76,9 +75,6 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 	const float wy = rlat_d - rlat_i;
 
 	for (int stag = 0; stag < 2; ++stag) {
-		//lvl_d = lvl_d_0 - count * 0.5;
-		//cout << "lvl_d[" << stag << "] : " << lvl_d[stag];
-		//cout << "     80-lvld: " << 80 - lvl_d[stag] << endl;
 		int lvl_i = lvl_d[stag];
 		double wz = lvl_d[stag] - lvl_i;
 
@@ -100,7 +96,6 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 		ws[6] = (1 - wx) * wy * wz; gcs[6] = Vec3i(rlon_i, rlat_i + 1, lvl_i + 1);
 		ws[7] = wx * wy * wz; gcs[7] = Vec3i(rlon_i + 1, rlat_i + 1, lvl_i + 1);
 
-		float uu = 0, vv = 0, ww = 0;
 		for (int i = 0; i < 8; ++i) {
 			if (stag == 0) {
 				uvw[0] += U->GetVertexDataAt(gcs[i])*ws[i];
@@ -109,15 +104,7 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 			else if (stag == 1) {
 				uvw[2] += W->GetVertexDataAt(gcs[i])*ws[i];
 			}
-			uu += U->GetVertexDataAt(gcs[i])*ws[i];
-			vv += V->GetVertexDataAt(gcs[i])*ws[i];
-			ww += W->GetVertexDataAt(gcs[i])*ws[i];
 		}
-
-		//cout << "uvw found at rlon_d " << rlon_d << " rlat_d" << rlat_d << " lvl_d " << lvl_d << endl;
-		//cout << "   is " << uu << " " << vv << " " << ww << endl;
-		//if (count == 1)cout << "UV from lvl_d " << lvl_d << ":   " << uu << " " << vv << endl;
-		//if (count == 2) cout << " W from lvl_d " << lvl_d << ":   " << ww << endl;
 	}
 
 	/*
