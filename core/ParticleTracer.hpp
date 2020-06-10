@@ -102,7 +102,7 @@ public:
 		TValueType v0 = field.Sample(start_pos, start_t);
 		TValueType res = start_pos;
 		for (int i = 0; i < nIter; ++i) {
-			TValueType v1 = field0.Sample(res, start_t + dt);
+			TValueType v1 = field.Sample(res, start_t + dt);
 			res = start_pos + (v0 + v1)*dt*0.5;
 		}
 		return res;

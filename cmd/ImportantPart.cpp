@@ -41,12 +41,15 @@ string ImportantPart::IntToDDHHMMSS(int seconds) const {
 
 void ImportantPart::setTimestep(double timestep) {
 	dt = timestep;
-	nSteps = ceil((end_t - start_t) / dt);
+	if (dt > 0)
+		nSteps = ceil((end_t - start_t) / dt);
+	else if (dt < 0)
+		nSteps = floor((end_t - start_t) / dt);
 }
 
 void ImportantPart::setNumberOfTimesteps(int num_steps) {
 	nSteps = num_steps;
-	dt = (end_t - start_t) / nSteps;
+	if(nSteps > 0) dt = (end_t - start_t) / nSteps;
 }
 
 // Computes the data of td
@@ -66,8 +69,8 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 	// Create list of relevant files
 	vector<string> files;// the list
 	vector<int> file_t;// the time of each file
-	int file_i_0 = floor((start_t - file_t0) / file_dt);
-	int file_i_1 = ceil((end_t - file_t0) / file_dt);
+	int file_i_0 = floor((std::min(start_t, end_t) - file_t0) / file_dt);
+	int file_i_1 = ceil((std::max(start_t, end_t) - file_t0) / file_dt);
 	for (int i = file_i_0; i <= file_i_1; ++i) {
 		int t = file_t0 + i * file_dt;
 		files.push_back(basefilename + IntToDDHHMMSS(t) + fileending);
@@ -82,12 +85,16 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 
 	// setup ringbuffer
 	int file_i = 0;
-	vector<ISampleField<Vec3f, 3>*> ringbuffer(3);
+	TimeRelatedFields<Vec3f, 3> UVW(3);
+	//vector<ISampleField<Vec3f, 3>*> ringbuffer(3);
 	for (int i = 0; i < 3; ++i) {
+		//TODO: if dt<0, start at end? or reverse file order?
 		if (!lagrantostyle)
-			ringbuffer[i] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[i]), hhl);
+			UVW.InsertNextField(new RlonRlatHField_Vec3f(UVWFromNCFile(files[i]), hhl), file_t[i]);
+			//ringbuffer[i] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[i]), hhl);
 		else
-			ringbuffer[i] = new LagrantoUVW(files[i], hhl);
+			UVW.InsertNextField(new LagrantoUVW(files[i], hhl), file_t[i]);
+			//ringbuffer[i] = new LagrantoUVW(files[i], hhl);
 	}
 	int ri0 = 0, ri1 = 1, ri2 = 2;
 
@@ -98,8 +105,12 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 	}
 
 	// domain is relevant for checking TODO it's not actually used
-	const BoundingBox3d bb = hhl->GetDomain();//TODO that's probably incorrect
-	BoundingBox<Vec3f> bb_f(Vec3f(bb.GetMin()[0], bb.GetMin()[1], bb.GetMin()[1]), Vec3f(bb.GetMax()[0], bb.GetMax()[1], bb.GetMax()[1]));
+	const BoundingBox3d bb = hhl->GetDomain();
+	const float rlon_min = bb.GetMin()[0];
+	const float rlon_max = bb.GetMax()[0];
+	const float rlat_min = bb.GetMin()[1];
+	const float rlat_max = bb.GetMax()[1];
+
 	// and an extra variable to mark the final part where only 2 fields are used
 	bool finalPart = false;
 
@@ -116,7 +127,9 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 	}
 
 	// need another two fields per other variable
-	vector<vector<RlonRlatHField_f*>> other_fields(other_vars.size());
+	vector<TimeRelatedFields<float, 3>> other_var_fields(other_vars.size(), 2);
+	//vector<vector<RlonRlatHField_f*>> other_fields(other_vars.size());
+	/*
 	for (int i = 0; i < other_fields.size(); ++i) {
 		other_fields[i].resize(2);
 		for (int j = 0; j < other_fields[i].size(); ++j) {
@@ -124,32 +137,46 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 			other_fields[i][j] = new RlonRlatHField_f(field, hhl);
 		}
 	}
+	*/
+	for (int i = 0; i < other_var_fields.size(); ++i) {
+		for (int j = 0; j < 2; ++j) {
+			RegScalarField3f* field = NetCDF::ImportScalarField3f(files[j], td.varnames[other_vars[i]], "rlon", "rlat", "level");
+			other_var_fields[i].InsertNextField(field, file_t[i]);
+		}
+	}
 	int other_ri = 0;
 
 	//oh, and write the initial points
 	double lon, lat;
-	for(int i=0;i<td.num_trajectories;++i){
+	for (int i = 0; i < td.num_trajectories; ++i) {
 		td.val(rlon_id, i, 0) = position[i][0];
 		td.val(rlat_id, i, 0) = position[i][1];
 		td.val(z_id, i, 0) = position[i][2];
 		CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
 		td.val(lon_id, i, 0) = lon;
 		td.val(lat_id, i, 0) = lat;
-		for (int j = 0; j < other_fields.size(); ++j) {
-			Vec3f coord(position[i][0], position[i][1], position[i][2]);
-			float val_0 = other_fields[j][other_ri]->Sample(coord);
-			float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);
-			float alpha = (td.time_begin - file_t[file_i]) / (file_t[file_i + 1] - file_t[file_i]);
-			td.val(other_vars[j], i, 0) = (1 - alpha)*val_0 + alpha * val_1;
+		for (int j = 0; j < other_var_fields.size(); ++j) {
+			Vec3d coord(position[i][0], position[i][1], position[i][2]);
+			td.val(other_vars[j], i, 0) = other_var_fields[j].Sample(coord, td.time_begin);
+			//float val_0 = other_fields[j][other_ri]->Sample(coord);
+			//float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);
+			//float alpha = (td.time_begin - file_t[file_i]) / (file_t[file_i + 1] - file_t[file_i]);
+			//td.val(other_vars[j], i, 0) = (1 - alpha)*val_0 + alpha * val_1;
 		}
 	}
 
 	//--------------------- Where particles are traced and paths filled
 	// compute trajectories
 	int step_i = 1;
-	for (double t = td.time_begin; t < td.time_end; t += dt) {
+	//TODO if dt < 0 ...
+	if (dt < 0) {
+		cout << "Sorry, backtracing has not been implemented yet.\n";
+		return;
+	}
+	for (double t = td.time_begin; t < td.time_end; t += dt) {//TODO loop differently for dt<0
 		cout << "begin step " << step_i<<"   at time "<<t << endl;
-		if (t >= file_t[file_i + 1]) {
+		if (t >= file_t[file_i + 1]) {//TODO change for dt<0 (?)
+			/*
 			delete ringbuffer[file_i % 3];
 			ri0 = ri1;
 			ri1 = ri2;
@@ -164,20 +191,33 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 				finalPart = true;
 			}
 			ri2 = file_i % 3;
+			*/
+			if (files.size() > file_i + 3) {
+				if (!lagrantostyle)
+					UVW.InsertNextField(new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl), file_t[file_i + 3]);
+				else
+					UVW.InsertNextField(new LagrantoUVW(files[file_i + 3], hhl), file_t[file_i + 3]);
+			}
+			else {
+				finalPart = true;
+			}
 			++file_i;
 		}
-		if (t + dt > file_t[file_i + 1]) {
-			for (int i = 0; i < other_fields.size(); ++i) {
-				delete other_fields[i][other_ri];
-				cout << "Loading " << td.varnames[other_vars[i]] << "-field from " << files[file_i + 2] << endl;
+		if (t + dt > file_t[file_i + 1]) {//TODO change for dt<0 (?)
+			for (int i = 0; i < other_var_fields.size(); ++i) {
+				//delete other_var_fields[i][other_ri];
+				//cout << "Loading " << td.varnames[other_vars[i]] << "-field from " << files[file_i + 2] << endl;
 				RegScalarField3f* field = NetCDF::ImportScalarField3f(files[file_i + 2], td.varnames[other_vars[i]], "rlon", "rlat", "level");
-				other_fields[i][other_ri] = new RlonRlatHField_f(field, hhl);
+				//other_fields[i][other_ri] = new RlonRlatHField_f(field, hhl);
+				other_var_fields[i].InsertNextField(field, file_t[file_i + 2]);
 			}
 			other_ri = file_i % 2;
 		}
 		#pragma omp parallel for
 		for (int i = 0; i < td.num_trajectories; ++i) {
-			if (true) {//if (bb_f.Contains(position[i])) { TODO domain matters
+			if (position[i][0]>=rlon_min && position[i][0] <= rlon_max
+				&& position[i][1] >= rlat_min && position[i][1] <= rlat_max) {
+				/*
 				if (!finalPart) {
 					position[i] = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], position[i], t, dt);
 					//TODO use iterative Euler if lagrantostyle
@@ -185,6 +225,11 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 				else {
 					position[i] = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], position[i], t, dt);
 				}
+				*/
+				if (!lagrantostyle)
+					position[i] = tracer.traceParticleRungeKutta(UVW, position[i], t, dt);
+				else
+					position[i] = tracer.traceParticleIterativeEuler(UVW, position[i], t, dt, 3);
 			}
 			td.val(rlon_id, i, step_i) = position[i][0];
 			td.val(rlat_id, i, step_i) = position[i][1];
@@ -192,19 +237,20 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 			CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
 			td.val(lon_id, i, step_i) = lon;
 			td.val(lat_id, i, step_i) = lat;
-			for (int j = 0; j < other_fields.size(); ++j) {
+			for (int j = 0; j < other_var_fields.size(); ++j) {
 				// hope this works correctly now
-				Vec3f coord(position[i][0], position[i][1], position[i][2]);
-				float val_0 = other_fields[j][other_ri]->Sample(coord);
-				float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);
-				float alpha = (t - file_t[file_i]) / (file_t[file_i + 1] - file_t[file_i]);
-				td.val(other_vars[j], i, step_i) = (1 - alpha)*val_0 + alpha * val_1;
+				Vec3d coord(position[i][0], position[i][1], position[i][2]);
+				//float val_0 = other_fields[j][other_ri]->Sample(coord);
+				//float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);
+				//float alpha = (t - file_t[file_i]) / (file_t[file_i + 1] - file_t[file_i]);
+				//td.val(other_vars[j], i, step_i) = (1 - alpha)*val_0 + alpha * val_1;
+				td.val(other_vars[j], i, step_i) = other_var_fields[j].Sample(coord, t + dt);
 			}
 		}
 		++step_i;
 	}
 	//--------------------- the end
-	for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];
+	//for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];
 	std::cout << "Trajectories have been computed\n";
 }
 
