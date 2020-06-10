@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
 		string name = "";
 		cout << "Enter a filename> ";
 		cin >> name;
+		bool lagrantostyle = name[0] == 'L';
 
 		ImportantPart imp;
 
@@ -204,7 +205,7 @@ int main(int argc, char *argv[])
 		points_file.close();
 
 		// Do the important part
-		imp.computeTrajectoryData(td);
+		imp.computeTrajectoryData(td, lagrantostyle);
 
 		NetCDF::WriteTrajectoryData("trajectory_" + name + ".nc", td);
 		cout << "Finished" << endl;

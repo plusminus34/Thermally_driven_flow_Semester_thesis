@@ -49,13 +49,9 @@ void ImportantPart::setNumberOfTimesteps(int num_steps) {
 	dt = (end_t - start_t) / nSteps;
 }
 
-void ImportantPart::doStuff() {
-	std::cout << "doStuff is deprecated, use computeTrajectoryData instead\n";
-}
-
 // Computes the data of td
 // Assumes that the other members of td have been initialized
-void ImportantPart::computeTrajectoryData(TrajectoryData& td)
+void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle)
 {
 	//--------------------- Initialization
 	// see that data has correct sizes
@@ -86,10 +82,13 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 
 	// setup ringbuffer
 	int file_i = 0;
-	vector<RlonRlatHField<Vec3f>*> ringbuffer(3);
-	ringbuffer[0] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[0]), hhl);
-	ringbuffer[1] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[1]), hhl);
-	ringbuffer[2] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[2]), hhl);
+	vector<ISampleField<Vec3f, 3>*> ringbuffer(3);
+	for (int i = 0; i < 3; ++i) {
+		if (!lagrantostyle)
+			ringbuffer[i] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[i]), hhl);
+		else
+			ringbuffer[i] = new LagrantoUVW(files[i], hhl);
+	}
 	int ri0 = 0, ri1 = 1, ri2 = 2;
 
 	// store current position of each trajectory
@@ -98,7 +97,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		position[i] = trajectories[i][0];
 	}
 
-	// domain is relevant for checking
+	// domain is relevant for checking TODO it's not actually used
 	const BoundingBox3d bb = hhl->GetDomain();//TODO that's probably incorrect
 	BoundingBox<Vec3f> bb_f(Vec3f(bb.GetMin()[0], bb.GetMin()[1], bb.GetMin()[1]), Vec3f(bb.GetMax()[0], bb.GetMax()[1], bb.GetMax()[1]));
 	// and an extra variable to mark the final part where only 2 fields are used
@@ -155,7 +154,10 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			ri0 = ri1;
 			ri1 = ri2;
 			if (files.size() > file_i + 3) {
-				ringbuffer[file_i % 3] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl);
+				if (!lagrantostyle)
+					ringbuffer[file_i % 3] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl);
+				else
+					ringbuffer[file_i % 3] = new LagrantoUVW(files[file_i + 3], hhl);
 			}
 			else {
 				ringbuffer[file_i % 3] = nullptr;
@@ -173,10 +175,12 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			}
 			other_ri = file_i % 2;
 		}
+		#pragma omp parallel for
 		for (int i = 0; i < td.num_trajectories; ++i) {
 			if (true) {//if (bb_f.Contains(position[i])) { TODO domain matters
 				if (!finalPart) {
 					position[i] = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], position[i], t, dt);
+					//TODO use iterative Euler if lagrantostyle
 				}
 				else {
 					position[i] = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], position[i], t, dt);
@@ -213,15 +217,15 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td)
 		td.data[i].resize(td.num_trajectories*td.points_per_trajectory);
 	}
 
-	// name of the file containing constants (mainly HHL)
+	// name of the file containing constants (read: HHL)
 	string constantsfile = basefilename + IntToDDHHMMSS(file_t0) + 'c' + fileending;
 
-	// Not sure if tracer is used ... I'll probably do it "by hand"
 	ParticleTracer<Vec3f, 3> tracer;
 
 	// Helping: Map of level to acutal height in meters
 	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
 
+	//This is the only field used for now
 	LagrantoUVW luv(basefilename + IntToDDHHMMSS(file_t0) + fileending, hhl);
 
 	// store current position of each trajectory
@@ -251,27 +255,12 @@ void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td)
 		td.val(lat_id, i, 0) = lat;
 	}
 
-	//cout << "hhl domain: x " << x0 << " to " << x1 << "\ty " << y0 << " to " << y1 << endl;
-	//cout << "    voxelsize " << dx << " " << dy << "\tres " << res_x << " " << res_y << endl;
-
 	for (int traj = 0; traj < position.size();++traj) {
 		//cout << "coord "<<traj<<" begin: " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
 		int step_i = 1;
 		for (double t = td.time_begin; t < td.time_end; t += dt) {
+			position[traj] = tracer.traceParticleIterativeEuler(luv, start_t, luv, end_t, position[traj], t, dt, 3);
 
-			//Vec3f uvw0 = sampleUVWTEST(position[traj], U, V, W, hhl);
-			Vec3f uvw0 = luv.Sample(position[traj]);
-			Vec3f res = position[traj];
-			for (int i = 0; i < 3; ++i) {
-				//Vec3f uvw1 = sampleUVWTEST(res, U, V, W, hhl);
-				Vec3f uvw1 = luv.Sample(res);
-				Vec3f uvw = (uvw0 + uvw1)*0.5;
-				res = position[traj] + uvw*dt;
-				//cout << "p0 " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
-				//cout << "uvw " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
-				//cout << "p1 " << res[0] << " " << res[1] << " " << res[2] << endl;
-			}
-			position[traj] = res;
 			td.val(rlon_id, traj, step_i) = position[traj][0];
 			td.val(rlat_id, traj, step_i) = position[traj][1];
 			td.val(z_id, traj, step_i) = position[traj][2];
