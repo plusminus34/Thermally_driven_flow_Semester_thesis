@@ -9,4 +9,5 @@ class ISampleField
 {
 public:
 	virtual TValueType Sample(const Vec<double, TDimensions>& coord) const = 0;
+	virtual ~ISampleField() {}
 };

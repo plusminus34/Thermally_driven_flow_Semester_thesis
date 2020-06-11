@@ -103,6 +103,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		else
 			UVW.InsertNextField(new LagrantoUVW(files[i], hhl), file_t[i]);
 	}
+	if (backward) UVW.setBackward(true);
 
 	// store current position of each trajectory
 	vector<Vec3f> position(td.num_trajectories);
@@ -139,6 +140,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			RegScalarField3f* field = NetCDF::ImportScalarField3f(files[j], td.varnames[other_vars[i]], "rlon", "rlat", "level");
 			other_var_fields[i].InsertNextField(field, file_t[i]);
 		}
+		if (backward) other_var_fields[i].setBackward(true);
 	}
 
 	//oh, and write the initial points
@@ -178,6 +180,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			}
 			++file_i;
 		}
+		//TODO is this wrong? eh, it's something that should change anyway
 		need_new_file = backward ? (t + dt_real < file_t[file_i + 1]) : t + dt_real > file_t[file_i + 1];
 		if (need_new_file) {
 		//if (t + dt > file_t[file_i + 1]) {
@@ -205,9 +208,6 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			for (int j = 0; j < other_var_fields.size(); ++j) {
 				Vec3d coord(position[i][0], position[i][1], position[i][2]);
 				td.val(other_vars[j], i, step_i + 1) = other_var_fields[j].Sample(coord, t + dt_real);
-			}
-			if (i == 0) {
-				cout << "pos " << i << ": " << position[i][0] << " " << position[i][1] << " " << position[i][2] << endl;
 			}
 		}
 		t += dt_real;

@@ -1,8 +1,6 @@
-#pragma once
+#pragma onceä
 
 #include "ISampleField.hpp"
-
-#include <list>
 
 template<typename TValueType, size_t TDimensions>
 class TimeRelatedFields: public ISampleField<TValueType, TDimensions>
