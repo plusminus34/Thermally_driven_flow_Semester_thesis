@@ -28,6 +28,37 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
+		class CField : public ISampleField<double, 1> {
+		public:
+			double value;
+			CField(double val) :value(val) { cout << value << endl; }
+			virtual double Sample(const Vec<double,1>& coord) const override {
+				return value;
+			}
+		};
+
+		cout << "a\n";
+		int nf = 4;
+		TimeRelatedFields<double, 1> rlf(nf);
+		//rlf.setBackward(true);
+		cout << "b\n";
+		rlf.InsertNextField(new CField(42.0), .5);
+		cout << "b2\n";
+		rlf.InsertNextField(new CField(1.0), 1.4);
+		rlf.InsertNextField(new CField(2.0), 2);
+		rlf.InsertNextField(new CField(4), 3);
+		cout << "c\n";
+
+		Vec<double, 1> corn;
+		cout << "d\n";
+		for (int i = 0; i < 20; ++i) {
+			double t = i * 0.4;
+			cout <<t<<": "<< rlf.Sample(corn, t)<<endl;
+		}
+		cout << "e\n";
+
+
+		return 0;
 		std::string path(argv[1]);
 		RegScalarField3f* U = nullptr;
 		RegScalarField3f* V = nullptr;
@@ -114,9 +145,11 @@ int main(int argc, char *argv[])
 			}
 			nPaths = paths_dim[0] * paths_dim[1] * paths_dim[2];
 			cout << "Input start and end time (Format: t0 t1)> "; cin >> t0; cin >> t1;
-			assert(t1 > t0);
 			cout << "Input timestep> "; cin >> dt;
-			assert(dt > 0);
+			if (t1 < t0 || dt < 0) {
+				cout << "Sorry, backtracing has not been implemented yet.\n";
+				return 0;
+			}
 			nSteps = ceil((t1 - t0) / dt);
 
 			int more = 0;
@@ -148,7 +181,7 @@ int main(int argc, char *argv[])
 			cout << "Confirm (0/1)> "; cin >> confirmed;
 		}
 		string name = "";
-		cout << "Enter a filename> ";
+		cout << "Enter a name for points/trajectory> ";
 		cin >> name;
 		bool lagrantostyle = name[0] == 'L';
 
@@ -171,13 +204,12 @@ int main(int argc, char *argv[])
 		imp.setTimeBoundaries(t0, t1);
 		imp.setTimestep(dt);
 
-		// 2 0 0.3 2 2.3 -10 8000 0.1 0.1 300 11 1111 44 1
-
 		imp.trajectories.resize(nPaths);
 		cout << "Printing initial points\n";
 
 		ofstream points_file;
 		points_file.open("points_" + name + ".txt");
+		//points_file.open(name + "_points" + ".txt");
 
 		string hhmm = "";
 		int h = td.time_begin / 3600;
@@ -208,6 +240,7 @@ int main(int argc, char *argv[])
 		imp.computeTrajectoryData(td, lagrantostyle);
 
 		NetCDF::WriteTrajectoryData("trajectory_" + name + ".nc", td);
+		//NetCDF::WriteTrajectoryData(name + "_trajectory" + ".nc", td);
 		cout << "Finished" << endl;
 	}
 	else if (input < 2) {

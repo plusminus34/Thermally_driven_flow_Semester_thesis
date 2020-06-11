@@ -3,13 +3,15 @@
 #include <string>
 #include <vector>
 #include "UVWReader.hpp"
+#include "core/TimeRelatedFields.hpp"
 
 template<typename TValueType, size_t TDimensions>
 class ParticleTracer {
 public:
 	using field_t = ISampleField<TValueType, TDimensions>;
+	using time_field_t = TimeRelatedFields<TValueType, TDimensions>;
 
-	//time invariant
+	//--- time invariant case ---
 	TValueType traceParticle(const field_t& field, const TValueType& start, double dt) {
 		TValueType k1 = field.Sample(start);
 		TValueType k2 = field.Sample(start + k1 * dt*0.5);
@@ -17,6 +19,8 @@ public:
 		TValueType k4 = field.Sample(start + k3 * dt);
 		return start + (k1 + k2 * 2 + k3 * 2 + k4) * (dt / 6.0);
 	}
+
+	//--- Variants with more than one field ---
 
 	//between field0 at t0 and field1 at t1
 	TValueType traceParticle(const field_t& field0, double t0, const field_t& field1, double t1, const TValueType& start, double start_t, float dt) {
@@ -80,6 +84,26 @@ public:
 		for (int i = 0; i < nIter; ++i) {
 			TValueType v1 = field0.Sample(res) * (1 - t_b) + field1.Sample(res) * t_b;
 			res = start + (v0 + v1)*dt*0.5;
+		}
+		return res;
+	}
+
+	//Variants using TimeRelatedFields
+
+	TValueType traceParticleRungeKutta(const time_field_t& field, const TValueType& start_pos, double start_t, float dt) {
+		TValueType k1 = field.Sample(start_pos, start_t);
+		TValueType k2 = field.Sample(start_pos + k1 * dt*0.5, start_t + dt * 0.5);
+		TValueType k3 = field.Sample(start_pos + k2 * dt*0.5, start_t + dt * 0.5);
+		TValueType k4 = field.Sample(start_pos + k3 * dt, start_t + dt);
+		return start_pos + (k1 + k2 * 2 + k3 * 2 + k4) * (dt / 6.0);
+	}
+
+	TValueType traceParticleIterativeEuler(const time_field_t& field, const TValueType& start_pos, double start_t, float dt, int nIter) {
+		TValueType v0 = field.Sample(start_pos, start_t);
+		TValueType res = start_pos;
+		for (int i = 0; i < nIter; ++i) {
+			TValueType v1 = field.Sample(res, start_t + dt);
+			res = start_pos + (v0 + v1)*dt*0.5;
 		}
 		return res;
 	}
