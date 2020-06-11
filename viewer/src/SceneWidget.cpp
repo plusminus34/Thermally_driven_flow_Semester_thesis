@@ -35,7 +35,9 @@ void SceneWidget::CreateTestScene()
 	// Settings
 
 	bool build_landscape = false;// TODO check if file exists automatically
-	bool use_rotated = true;//use rlonrlat (if false, lonlat are used)
+	bool use_rotated = false;//use rlonrlat (if false, lonlat are used)
+
+	int line_limit = 100;
 
 	// display surface
 	vtkNew<vtkPolyDataMapper> landscapeMapper;
@@ -86,105 +88,43 @@ void SceneWidget::CreateTestScene()
 	}
 	vtkNew<vtkActor> landscapeActor;
 	landscapeActor->SetMapper(landscapeMapper);
-	
-	//string file_1 = "../../../outputs/lagranto_demo_605.nc";
-	string file = "../../../outputs/trajectory_demo_605.nc";
-	//string file_1 = "../../../outputs/testoutput.4";
-	//string file_2 = "../../../outputs/trajectory_TEST.nc";
-	
-	TrajectoryData td;
 
-	NetCDF::ReadTrajectoryData(file, td);
-	assert(td.num_trajectories > 0);
-	assert(td.points_per_trajectory > 0);
+	vector<string> files(0);
 
+	int r[] = { 255,0,0 };
+	int g[] = { 0,255,0 };
+	int b[] = { 0,0,255 };
+	float thickness[] = { 1,2,3 };
+
+	int lalala = 2;
+	if (lalala == 0) {
+		files.push_back("../../../outputs/trajectory_TEST_correctish.nc");
+		files.push_back("../../../outputs/lag_TEST.4");
+		thickness[0] = thickness[1] = 2;
+	}else if(lalala == 1) {
+		files.push_back("../../../outputs/trajectory_Lcomparison_const.nc");
+		files.push_back("../../../outputs/trajectory_comparison_const.nc");
+		files.push_back("../../../outputs/trajectory_Lcomparison_const.4");
+	}
+	else if (lalala == 2) {
+		line_limit = 10;
+		files.push_back("../../../outputs/trajectory_comparison.nc");
+		files.push_back("../../../outputs/trajectory_Lcomparison.4");
+		files.push_back("../../../outputs/trajectory_Lcomparison.nc");
+		thickness[0] = thickness[2] = 1.5f;
+	}
+	
 	vtkNew<vtkNamedColors> colors;
 
 	vtkNew<vtkRenderer> renderer;
 	renderer->SetBackground(colors->GetColor3d("SteelBlue").GetData());
 
-	bool debugSpheres = false;
-	if(debugSpheres){
-		vtkNew<vtkSphereSource> sphere;
-		sphere->SetRadius(0.5);
-		sphere->SetCenter(0, 0, 0);
-		sphere->Update();
-		vtkNew<vtkPolyDataMapper> sphereMapper;
-		sphereMapper->SetInputConnection(sphere->GetOutputPort());
-
-		/*
-		vtkNew<vtkActor> sphereActor;
-		sphereActor->SetMapper(sphereMapper);
-		sphereActor->GetProperty()->SetColor(0.5, 0.5, 0.5);
-		renderer->AddActor(sphereActor);
-
-		vtkNew<vtkActor> sphereActorX;
-		sphereActorX->SetMapper(sphereMapper);
-		sphereActorX->GetProperty()->SetColor(1, 0, 0);
-		sphereActorX->SetScale(5, 0.1, 0.1);
-		renderer->AddActor(sphereActorX);
-		vtkNew<vtkActor> sphereActorY;
-		sphereActorY->SetMapper(sphereMapper);
-		sphereActorY->GetProperty()->SetColor(0, 1, 0);
-		sphereActorY->SetScale(0.1, 5, 0.1);
-		renderer->AddActor(sphereActorY);
-		vtkNew<vtkActor> sphereActorZ;
-		sphereActorZ->SetMapper(sphereMapper);
-		sphereActorZ->GetProperty()->SetColor(0, 0, 1);
-		sphereActorZ->SetScale(0.1, 0.1, 5);
-		renderer->AddActor(sphereActorZ);
-		*/
-
-		double rlon, rlat, lon, lat;
-
-		rlon = 0; rlat = 0;
-		CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
-		vtkNew<vtkActor> sphereActor_loco;
-		sphereActor_loco->SetMapper(sphereMapper);
-		sphereActor_loco->GetProperty()->SetColor(1, 0, 1);
-		sphereActor_loco->SetScale(0.3, 0.3, 1);
-		sphereActor_loco->SetPosition(lon, lat, 0);
-		renderer->AddActor(sphereActor_loco);
-
-		rlon = 1; rlat = 0;
-		CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
-		vtkNew<vtkActor> sphereActor_lon;
-		sphereActor_lon->SetMapper(sphereMapper);
-		sphereActor_lon->GetProperty()->SetColor(1, 0.5, 0);
-		sphereActor_lon->SetScale(0.5, 0.2, 0.8);
-		sphereActor_lon->SetPosition(lon, lat, 0);
-		renderer->AddActor(sphereActor_lon);
-
-		rlon = 0; rlat = 1;
-		CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
-		vtkNew<vtkActor> sphereActor_lat;
-		sphereActor_lat->SetMapper(sphereMapper);
-		sphereActor_lat->GetProperty()->SetColor(0, 0.5, 1);
-		sphereActor_lat->SetScale(0.2, 0.5, 0.8);
-		sphereActor_lat->SetPosition(lon, lat, 0);
-		renderer->AddActor(sphereActor_lat);
-
-
-		for (int i = 0; i <= 10; ++i) {
-			for (int j = 0; j <= 5; ++j) {
-				double rlon = i * 0.1;
-				double rlat = j * 0.1;
-				double lon, lat;
-				CoordinateTransform::RlatRlonToLatLon(rlat, rlon, lat, lon);
-				vtkNew<vtkActor> sphereActor_ij;
-				sphereActor_ij->SetMapper(sphereMapper);
-				sphereActor_ij->GetProperty()->SetColor(rlon, rlat, 0.5);
-				sphereActor_ij->SetScale(0.03, 0.03, 0.1);
-				sphereActor_ij->SetPosition(lon, lat, 1);
-				renderer->AddActor(sphereActor_ij);
-			}
-		}
-	}
-
 	renderer->AddActor(landscapeActor);
 
 	// Create trajectory actor
-	if(true){
+	for (int file_i = 0; file_i < files.size(); ++file_i) {
+		TrajectoryData td;
+		NetCDF::ReadTrajectoryData(files[file_i], td);
 		assert(td.num_trajectories > 0);
 		assert(td.points_per_trajectory > 0);
 		vtkNew<vtkPoints> points;
@@ -203,34 +143,39 @@ void SceneWidget::CreateTestScene()
 		assert(y_id > -1);
 		assert(z_id > -1);
 
-		int T_id = td.get_var_id("T"); assert(T_id > -1);
-		int P_id = td.get_var_id("P");
-		int hum_id = td.get_var_id("RELHUM");
+		//int T_id = td.get_var_id("T"); assert(T_id > -1);
+		//int P_id = td.get_var_id("P");
+		//int hum_id = td.get_var_id("RELHUM");
 
 		vtkNew<vtkUnsignedCharArray> colors;
 		colors->SetName("T_color");
 		colors->SetNumberOfComponents(3);
 		colors->SetNumberOfTuples(td.num_trajectories*td.points_per_trajectory);
 
+		int count =0;
 		for (int i = 0; i < td.num_trajectories; ++i) {
 			for (int j = 0; j < td.points_per_trajectory; ++j) {
 				//points->InsertNextPoint(i, j, i*j);
 				points->InsertNextPoint(td.val(x_id, i, j), td.val(y_id, i, j), td.val(z_id, i, j) * ZSCALE);
+				//points->InsertNextPoint(i,j*0.01,file_i);
 
-				float sat = (td.val(T_id, i, j) - td.min_values[T_id]) / (td.max_values[T_id] - td.min_values[T_id]);
+				//float sat = (td.val(T_id, i, j) - td.min_values[T_id]) / (td.max_values[T_id] - td.min_values[T_id]);
 				//float sat = (float)j / td.points_per_trajectory;
 				//float sat = (td.val(T_id, i, j) - 200) / (td.max_values[T_id] - 200);
 				//float sat = (td.val(hum_id, i, j) - td.min_values[hum_id]) / (td.max_values[hum_id] - td.min_values[hum_id]);
 				int ij = i * td.points_per_trajectory + j;
 				//colors->InsertTuple3(ij, (int)(100 + 155 * sat), (int)(150 - 140 * sat), (int)(255 - 255 * sat));
-				colors->InsertTuple3(ij, 1, 255*j/td.points_per_trajectory, 255*i/td.num_trajectories);
+				//colors->InsertTuple3(ij, 100*file_i, 100+5*j/td.points_per_trajectory, 5*i/td.num_trajectories);
+				//colors->InsertTuple3(ij, 100 * file_i, 240-100*file_i, 20);
 				//colors->InsertTuple3(ij, td.val(T_id, i, j)-100, 20 * j / td.points_per_trajectory, 25 * i / td.num_trajectories);
+				//colors->InsertTuple3(ij, 200*file_i, 255 - 250*file_i, 255);
+				colors->InsertTuple3(ij, r[file_i], g[file_i], b[file_i]);
 			}
 		}
 		//size_t nPts = points->GetNumberOfPoints();
 
 		vtkNew<vtkCellArray> cells;
-		for (int i = 0; i < td.num_trajectories; ++i) {
+		for (int i = 0; i < line_limit && i < td.num_trajectories; ++i) {
 			vtkNew<vtkPolyLine> polyLine;
 			polyLine->GetPointIds()->SetNumberOfIds(td.points_per_trajectory);
 			for (unsigned int j = 0; j < td.points_per_trajectory; j++)
@@ -253,7 +198,7 @@ void SceneWidget::CreateTestScene()
 
 		vtkNew<vtkActor> actor;
 		actor->SetMapper(mapper);
-		actor->GetProperty()->SetLineWidth(3);
+		actor->GetProperty()->SetLineWidth(thickness[file_i]);
 
 		renderer->AddActor(actor);
 	}
