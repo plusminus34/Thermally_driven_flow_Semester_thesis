@@ -555,9 +555,8 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 	if (nc_enddef(ncid)) return false;
 	
 	// TODO these loops are probably inefficient, use nc_put_vara
-	float dt = (td.time_end - td.time_begin) / (td.points_per_trajectory - 1);
 	for (int i = 0; i < td.points_per_trajectory; ++i) {
-		float t = td.time_begin + i * dt;
+		double t = td.times[i];
 		int hours = floor(t / 3600);
 		int minutes = floor((t - 3600 * hours) / 60);
 		double time = hours + 0.01*minutes;// format hh.mm

@@ -54,7 +54,7 @@ void ImportantPart::setNumberOfTimesteps(int num_steps) {
 
 // Computes the data of td
 // Assumes that the other members of td have been initialized
-void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle)
+void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 {
 	//--------------------- Initialization
 	// see that data has correct sizes
@@ -62,49 +62,55 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 	for (int i = 0; i < td.varnames.size(); ++i) {
 		td.data[i].resize(td.num_trajectories*td.points_per_trajectory);
 	}
+	td.times.resize(td.points_per_trajectory);
 
 	// name of the file containing constants (mainly HHL)
 	string constantsfile = basefilename + IntToDDHHMMSS(file_t0) + 'c' + fileending;
 
+	// check if tracing forward or backward
+	bool backward = false;
+	if (start_t > end_t) backward = true;
+	if (backward && dt > 0) dt *= -1;
+	else if (!backward && dt < 0) dt *= -1;
+
 	// Create list of relevant files
 	vector<string> files;// the list
 	vector<int> file_t;// the time of each file
-	int file_i_0 = floor((std::min(start_t, end_t) - file_t0) / file_dt);
-	int file_i_1 = ceil((std::max(start_t, end_t) - file_t0) / file_dt);
-	for (int i = file_i_0; i <= file_i_1; ++i) {
+	int file_i_min = floor((std::min(start_t, end_t) - file_t0) / file_dt);
+	int file_i_max = ceil((std::max(start_t, end_t) - file_t0) / file_dt);
+	int nFiles = file_i_max - file_i_min + 1;
+	files.resize(nFiles);
+	file_t.resize(nFiles);
+	for (int i = file_i_min; i <= file_i_max; ++i) {
 		int t = file_t0 + i * file_dt;
-		files.push_back(basefilename + IntToDDHHMMSS(t) + fileending);
-		file_t.push_back(t);
+		int j = backward ? file_i_max - i : i - file_i_min;
+		files[j] = basefilename + IntToDDHHMMSS(t) + fileending;
+		file_t[j] = t;
 	}
 
 	// Yep, that's a particle tracer
 	ParticleTracer<Vec3f, 3> tracer;
 
-	// Helping: Map of level to acutal height in meters
+	// Helping: Map of level to actual height in meters
 	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
 
 	// setup ringbuffer
 	int file_i = 0;
 	TimeRelatedFields<Vec3f, 3> UVW(3);
-	//vector<ISampleField<Vec3f, 3>*> ringbuffer(3);
 	for (int i = 0; i < 3; ++i) {
-		//TODO: if dt<0, start at end? or reverse file order?
-		if (!lagrantostyle)
+		if (!use_lagranto_uvw)
 			UVW.InsertNextField(new RlonRlatHField_Vec3f(UVWFromNCFile(files[i]), hhl), file_t[i]);
-			//ringbuffer[i] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[i]), hhl);
 		else
 			UVW.InsertNextField(new LagrantoUVW(files[i], hhl), file_t[i]);
-			//ringbuffer[i] = new LagrantoUVW(files[i], hhl);
 	}
-	int ri0 = 0, ri1 = 1, ri2 = 2;
 
 	// store current position of each trajectory
 	vector<Vec3f> position(td.num_trajectories);
 	for (int i = 0; i < position.size(); ++i) {
-		position[i] = trajectories[i][0];
+		position[i] = trajectories[i][0];//TODO trajectories is no longer used otherwise
 	}
 
-	// domain is relevant for checking TODO it's not actually used
+	// domain is relevant for checking active trajectories
 	const BoundingBox3d bb = hhl->GetDomain();
 	const float rlon_min = bb.GetMin()[0];
 	const float rlon_max = bb.GetMax()[0];
@@ -116,7 +122,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 
 	// Figure out which variables are stored where
 	int rlon_id, rlat_id, z_id, lon_id, lat_id;
-	vector<int> other_vars;//TODO trace other variables
+	vector<int> other_vars;
 	for (int i = 0; i < td.varnames.size(); ++i) {
 		if (td.varnames[i] == "rlon") rlon_id = i;
 		else if (td.varnames[i] == "rlat") rlat_id = i;
@@ -128,23 +134,12 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 
 	// need another two fields per other variable
 	vector<TimeRelatedFields<float, 3>> other_var_fields(other_vars.size(), 2);
-	//vector<vector<RlonRlatHField_f*>> other_fields(other_vars.size());
-	/*
-	for (int i = 0; i < other_fields.size(); ++i) {
-		other_fields[i].resize(2);
-		for (int j = 0; j < other_fields[i].size(); ++j) {
-			RegScalarField3f* field = NetCDF::ImportScalarField3f(files[j], td.varnames[other_vars[i]], "rlon", "rlat", "level");
-			other_fields[i][j] = new RlonRlatHField_f(field, hhl);
-		}
-	}
-	*/
 	for (int i = 0; i < other_var_fields.size(); ++i) {
 		for (int j = 0; j < 2; ++j) {
 			RegScalarField3f* field = NetCDF::ImportScalarField3f(files[j], td.varnames[other_vars[i]], "rlon", "rlat", "level");
 			other_var_fields[i].InsertNextField(field, file_t[i]);
 		}
 	}
-	int other_ri = 0;
 
 	//oh, and write the initial points
 	double lon, lat;
@@ -158,78 +153,48 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 		for (int j = 0; j < other_var_fields.size(); ++j) {
 			Vec3d coord(position[i][0], position[i][1], position[i][2]);
 			td.val(other_vars[j], i, 0) = other_var_fields[j].Sample(coord, td.time_begin);
-			//float val_0 = other_fields[j][other_ri]->Sample(coord);
-			//float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);
-			//float alpha = (td.time_begin - file_t[file_i]) / (file_t[file_i + 1] - file_t[file_i]);
-			//td.val(other_vars[j], i, 0) = (1 - alpha)*val_0 + alpha * val_1;
 		}
+		td.times[0] = td.time_begin;
 	}
 
 	//--------------------- Where particles are traced and paths filled
 	// compute trajectories
-	int step_i = 1;
-	//TODO if dt < 0 ...
-	if (dt < 0) {
-		cout << "Sorry, backtracing has not been implemented yet.\n";
-		return;
-	}
-	for (double t = td.time_begin; t < td.time_end; t += dt) {//TODO loop differently for dt<0
-		cout << "begin step " << step_i<<"   at time "<<t << endl;
-		if (t >= file_t[file_i + 1]) {//TODO change for dt<0 (?)
-			/*
-			delete ringbuffer[file_i % 3];
-			ri0 = ri1;
-			ri1 = ri2;
+	int nSteps = ceil((td.time_end - td.time_begin) / dt);
+	cout << "There will be " << nSteps << " steps.\n";
+	double t = td.time_begin;
+	for (int step_i = 1; step_i < td.points_per_trajectory; ++step_i) {
+	//for (double t = td.time_begin; t < td.time_end; t += dt) {
+		cout << "Begin step " << step_i<<"   at time "<< t << endl;
+		double dt_real = step_i == td.points_per_trajectory - 1 ? td.time_end - t : dt;
+		// insert new files if necessary
+		bool need_new_file = backward ? (t <= file_t[file_i + 1]) : t >= file_t[file_i + 1];
+		if (need_new_file) {
+		//if (t >= file_t[file_i + 1]) {
 			if (files.size() > file_i + 3) {
-				if (!lagrantostyle)
-					ringbuffer[file_i % 3] = new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl);
-				else
-					ringbuffer[file_i % 3] = new LagrantoUVW(files[file_i + 3], hhl);
-			}
-			else {
-				ringbuffer[file_i % 3] = nullptr;
-				finalPart = true;
-			}
-			ri2 = file_i % 3;
-			*/
-			if (files.size() > file_i + 3) {
-				if (!lagrantostyle)
+				if (!use_lagranto_uvw)
 					UVW.InsertNextField(new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl), file_t[file_i + 3]);
 				else
 					UVW.InsertNextField(new LagrantoUVW(files[file_i + 3], hhl), file_t[file_i + 3]);
 			}
-			else {
-				finalPart = true;
-			}
 			++file_i;
 		}
-		if (t + dt > file_t[file_i + 1]) {//TODO change for dt<0 (?)
+		need_new_file = backward ? (t + dt_real < file_t[file_i + 1]) : t + dt_real > file_t[file_i + 1];
+		if (need_new_file) {
+		//if (t + dt > file_t[file_i + 1]) {
 			for (int i = 0; i < other_var_fields.size(); ++i) {
-				//delete other_var_fields[i][other_ri];
-				//cout << "Loading " << td.varnames[other_vars[i]] << "-field from " << files[file_i + 2] << endl;
 				RegScalarField3f* field = NetCDF::ImportScalarField3f(files[file_i + 2], td.varnames[other_vars[i]], "rlon", "rlat", "level");
-				//other_fields[i][other_ri] = new RlonRlatHField_f(field, hhl);
 				other_var_fields[i].InsertNextField(field, file_t[file_i + 2]);
 			}
-			other_ri = file_i % 2;
 		}
+		// propagate all active trajectories by one timestep
 		#pragma omp parallel for
 		for (int i = 0; i < td.num_trajectories; ++i) {
 			if (position[i][0]>=rlon_min && position[i][0] <= rlon_max
 				&& position[i][1] >= rlat_min && position[i][1] <= rlat_max) {
-				/*
-				if (!finalPart) {
-					position[i] = tracer.traceParticle(*ringbuffer[ri0], *ringbuffer[ri1], *ringbuffer[ri2], file_t[file_i], file_t[file_i + 2], position[i], t, dt);
-					//TODO use iterative Euler if lagrantostyle
-				}
-				else {
-					position[i] = tracer.traceParticle(*ringbuffer[ri0], file_t[file_i], *ringbuffer[ri1], file_t[file_i + 1], position[i], t, dt);
-				}
-				*/
-				if (!lagrantostyle)
-					position[i] = tracer.traceParticleRungeKutta(UVW, position[i], t, dt);
+				if (integrator==0)
+					position[i] = tracer.traceParticleRungeKutta(UVW, position[i], t, dt_real);
 				else
-					position[i] = tracer.traceParticleIterativeEuler(UVW, position[i], t, dt, 3);
+					position[i] = tracer.traceParticleIterativeEuler(UVW, position[i], t, dt_real, 3);
 			}
 			td.val(rlon_id, i, step_i) = position[i][0];
 			td.val(rlat_id, i, step_i) = position[i][1];
@@ -238,19 +203,17 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td, bool lagrantostyle
 			td.val(lon_id, i, step_i) = lon;
 			td.val(lat_id, i, step_i) = lat;
 			for (int j = 0; j < other_var_fields.size(); ++j) {
-				// hope this works correctly now
 				Vec3d coord(position[i][0], position[i][1], position[i][2]);
-				//float val_0 = other_fields[j][other_ri]->Sample(coord);
-				//float val_1 = other_fields[j][(other_ri + 1) % 2]->Sample(coord);
-				//float alpha = (t - file_t[file_i]) / (file_t[file_i + 1] - file_t[file_i]);
-				//td.val(other_vars[j], i, step_i) = (1 - alpha)*val_0 + alpha * val_1;
-				td.val(other_vars[j], i, step_i) = other_var_fields[j].Sample(coord, t + dt);
+				td.val(other_vars[j], i, step_i + 1) = other_var_fields[j].Sample(coord, t + dt_real);
+			}
+			if (i == 0) {
+				cout << "pos " << i << ": " << position[i][0] << " " << position[i][1] << " " << position[i][2] << endl;
 			}
 		}
-		++step_i;
+		t += dt_real;
+		td.times[step_i] = t;
 	}
 	//--------------------- the end
-	//for (int i = 0; i < 3; ++i) if (ringbuffer[i] != nullptr) delete ringbuffer[i];
 	std::cout << "Trajectories have been computed\n";
 }
 

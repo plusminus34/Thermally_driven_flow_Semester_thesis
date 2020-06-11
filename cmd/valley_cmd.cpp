@@ -28,85 +28,18 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
-		class CField : public ISampleField<double, 1> {
-		public:
-			double value;
-			CField(double val) :value(val) { cout << value << endl; }
-			virtual double Sample(const Vec<double,1>& coord) const override {
-				return value;
-			}
-		};
+		double t0 = 300;
+		double t1 = 99;
+		double dt = -13;
+		int nSteps = ceil((t1 - t0) / dt);
 
-		cout << "a\n";
-		int nf = 4;
-		TimeRelatedFields<double, 1> rlf(nf);
-		//rlf.setBackward(true);
-		cout << "b\n";
-		rlf.InsertNextField(new CField(42.0), .5);
-		cout << "b2\n";
-		rlf.InsertNextField(new CField(1.0), 1.4);
-		rlf.InsertNextField(new CField(2.0), 2);
-		rlf.InsertNextField(new CField(4), 3);
-		cout << "c\n";
-
-		Vec<double, 1> corn;
-		cout << "d\n";
-		for (int i = 0; i < 20; ++i) {
-			double t = i * 0.4;
-			cout <<t<<": "<< rlf.Sample(corn, t)<<endl;
+		cout << "t0 " << t0 << endl;
+		double t = t0;
+		for (int i = 0; i < nSteps; ++i) {
+			cout << "step " << i << ": from " << t << " to " << t + dt << endl;
+			t += dt;
 		}
-		cout << "e\n";
-
-
-		return 0;
-		std::string path(argv[1]);
-		RegScalarField3f* U = nullptr;
-		RegScalarField3f* V = nullptr;
-		RegScalarField3f* W = nullptr;
-		//SeparateUVWFromNCFile(path, U, V, W);
-
-		//TODO  test-integrator similar to input 2
-
-
-		Vec3d coord(-2.08377838, -0.960101426, 4000);
-		//Vec3d coord(-2.04549885, 0.0391660146, 4000);
-		//Vec3d coord(0, 0, 4000);
-
-		ImportantPart imp;
-		int nPaths = 4;
-
-		TrajectoryData td;
-		td.num_trajectories = nPaths;
-		td.time_begin = 0;
-		td.time_end = 3600;
-		imp.setTimeBoundaries(td.time_begin, td.time_end);
-		imp.setTimestep(60.0);
-		td.points_per_trajectory = 61;
-		td.varnames = { "rlon", "rlat", "z", "lon", "lat" };
-
-		string basefile = path;
-		basefile = basefile.substr(0, basefile.size() - 11);
-		imp.setBaseFileName(basefile);
-
-
-		imp.trajectories.resize(nPaths);
-		for (int path = 0; path < nPaths; ++path) {
-			imp.trajectories[path].resize(1);
-		}
-		imp.trajectories[0][0] = Vec3d(-2.08377838, -0.960101426, 4000);
-		imp.trajectories[1][0] = Vec3d(-2.04549885, 0.0391660146, 4000);
-		imp.trajectories[2][0] = Vec3d(-1.38938272, -0.982265174, 4000);
-		imp.trajectories[3][0] = Vec3d(-1.36385620, 0.0174084455, 4000);
-
-		// Do the important part
-		imp.computeTrajectoryDataTEST(td);
-		cout << "mostly done, write now\n";
-
-		NetCDF::WriteTrajectoryData("trajectory_TEST.nc", td);
-		int lon_id = td.get_var_id("lon");
-		for (int i = 0; i < 10; ++i) {
-		//	cout << "tdi " << i << ": " << td.val(lon_id, 0, i) << endl;
-		}
+		cout << "t1 " << t1 << endl;
 
 
 		return 0;
@@ -114,6 +47,10 @@ int main(int argc, char *argv[])
 	else if (input == 2) {
 
 		string path(argv[1]);
+		ImportantPart imp;
+		TrajectoryData td;
+
+		// Get user input
 		NetCDF::Info info;
 		if (!NetCDF::ReadInfo(path, info)) { return -1; }
 
@@ -126,7 +63,7 @@ int main(int argc, char *argv[])
 		vector<int> extra_variables(0);
 		bool confirmed = false;
 		while (!confirmed) {
-			cout << "Input bounds for tracing in (lat,lon,h) (Format: min_x max_x min_y max_y min_z max_z)\n> ";
+			cout << "Input bounds for tracing in (lon,lat,h) (Format: min_x max_x min_y max_y min_z max_z)\n> ";
 			for (int i = 0; i < 6; ++i) {
 				cin >> tracing_bounds[i];
 				/*
@@ -146,9 +83,16 @@ int main(int argc, char *argv[])
 			nPaths = paths_dim[0] * paths_dim[1] * paths_dim[2];
 			cout << "Input start and end time (Format: t0 t1)> "; cin >> t0; cin >> t1;
 			cout << "Input timestep> "; cin >> dt;
-			if (t1 < t0 || dt < 0) {
+			if (t1 < t0 && dt < 0) {
 				cout << "Sorry, backtracing has not been implemented yet.\n";
-				return 0;
+				//continue;
+			}
+			else if (t1 > t0 && dt > 0) {
+				//standard case
+			}
+			else {
+				cout << "This doesn't work, start over please.\n";
+				continue;
 			}
 			nSteps = ceil((t1 - t0) / dt);
 
@@ -174,6 +118,17 @@ int main(int argc, char *argv[])
 					cin >> extra_variables[i];
 				}
 			}
+			more = 0;
+			cout << "Change numeric settings? (0/1)> ";
+			cin >> more;
+			if (more > 0) {
+				cout << "Use Lagranto-style UVW? (0/1)> ";
+				cin >> input;
+				imp.setUseLagrantoUVW((bool)input);
+				cout << "Use which integrator?\n 0) Runge-Kutta 4\n 1) Iterative Euler\n> ";
+				cin >> input;
+				if (input == 1) imp.setIntegratorToIterativeEuler();
+			}
 
 			cout << "This will trace a total of " << nPaths << " trajectories (" << paths_dim[0] << " x " << paths_dim[1] << " x " << paths_dim[2] << ")\n";
 			cout << "There will be up to " << nSteps << " steps per trajectory, storing "<<extra_variables.size()<<" extra variables\n";
@@ -185,9 +140,7 @@ int main(int argc, char *argv[])
 		cin >> name;
 		bool lagrantostyle = name[0] == 'L';
 
-		ImportantPart imp;
-
-		TrajectoryData td;
+		// Prepare tracing
 		td.num_trajectories = nPaths;
 		td.points_per_trajectory = nSteps + 1;
 		td.time_begin = t0;
@@ -207,6 +160,7 @@ int main(int argc, char *argv[])
 		imp.trajectories.resize(nPaths);
 		cout << "Printing initial points\n";
 
+		// Write initial points into file
 		ofstream points_file;
 		points_file.open("points_" + name + ".txt");
 		//points_file.open(name + "_points" + ".txt");
@@ -237,7 +191,7 @@ int main(int argc, char *argv[])
 		points_file.close();
 
 		// Do the important part
-		imp.computeTrajectoryData(td, lagrantostyle);
+		imp.computeTrajectoryData(td);
 
 		NetCDF::WriteTrajectoryData("trajectory_" + name + ".nc", td);
 		//NetCDF::WriteTrajectoryData(name + "_trajectory" + ".nc", td);

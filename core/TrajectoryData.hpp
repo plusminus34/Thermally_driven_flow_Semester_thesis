@@ -33,6 +33,9 @@ struct TrajectoryData {
 	*/
 	std::vector<std::vector<float>> data;
 
+	// time at each point
+	std::vector<double> times;
+
 	// min and max values of each variable in data
 	std::vector<float> min_values;
 	std::vector<float> max_values;

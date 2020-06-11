@@ -13,7 +13,7 @@ public:
 	ImportantPart();
 
 	// Where trajectories are computed
-	void computeTrajectoryData(TrajectoryData& td, bool lagrantostyle = false);
+	void computeTrajectoryData(TrajectoryData& td);
 	void computeTrajectoryDataTEST(TrajectoryData& td);
 
 	// Set parameters
@@ -26,11 +26,16 @@ public:
 	void setBaseFileName(string name) { basefilename = name; }
 	void setFileOriginTime(int t0) { file_t0 = t0; }
 	void setFileTimestep(int dt) { file_dt = dt; }
+	// How to integrate
+	void setUseLagrantoUVW(bool val) { use_lagranto_uvw = val; }
+	void setIntegratorToRungeKutta() { integrator = 0; }
+	void setIntegratorToIterativeEuler() { integrator = 1; }
 
 	// convert the DDHHMMSS string to int (number of seconds)
 	int DDHHMMSSToInt(std::string input) const;
 	// and the other way around
 	string IntToDDHHMMSS(int seconds) const;
+
 
 
 private:
@@ -41,5 +46,8 @@ private:
 	double start_t = 0.0;
 	double end_t = 1200.0;
 	double dt = 1; int nSteps = 1200;
+
+	bool use_lagranto_uvw = true;
+	int integrator = 0;
 
 };
