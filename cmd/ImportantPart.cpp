@@ -85,6 +85,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		int t = file_t0 + i * file_dt;
 		int j = backward ? file_i_max - i : i - file_i_min;
 		files[j] = basefilename + IntToDDHHMMSS(t) + fileending;
+		if (time_invariant) files[j] = basefilename + IntToDDHHMMSS(file_t0) + fileending;//TODO this is a quick and dirty way to do this
 		file_t[j] = t;
 	}
 

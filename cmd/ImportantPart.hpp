@@ -30,6 +30,7 @@ public:
 	void setUseLagrantoUVW(bool val) { use_lagranto_uvw = val; }
 	void setIntegratorToRungeKutta() { integrator = 0; }
 	void setIntegratorToIterativeEuler() { integrator = 1; }
+	void setTimeInvariant(bool val) { time_invariant = val; }
 
 	// convert the DDHHMMSS string to int (number of seconds)
 	int DDHHMMSSToInt(std::string input) const;
@@ -49,5 +50,6 @@ private:
 
 	bool use_lagranto_uvw = true;
 	int integrator = 0;
+	bool time_invariant = false;
 
 };

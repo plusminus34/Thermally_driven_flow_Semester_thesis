@@ -9,6 +9,7 @@
 #include <vtkPointData.h>
 
 #include "ImportantPart.hpp"
+#include "core/LagrantoUVW.hpp"
 
 // ---------------------------------------
 // Entry point
@@ -28,20 +29,6 @@ int main(int argc, char *argv[])
 	std::cout << "3:\tDebug output\n> ";
 	cin >> input;
 	if (input == 3) {
-		double t0 = 300;
-		double t1 = 99;
-		double dt = -13;
-		int nSteps = ceil((t1 - t0) / dt);
-
-		cout << "t0 " << t0 << endl;
-		double t = t0;
-		for (int i = 0; i < nSteps; ++i) {
-			cout << "step " << i << ": from " << t << " to " << t + dt << endl;
-			t += dt;
-		}
-		cout << "t1 " << t1 << endl;
-
-
 		return 0;
 	}
 	else if (input == 2) {
@@ -119,7 +106,7 @@ int main(int argc, char *argv[])
 				}
 			}
 			more = 0;
-			cout << "Change numeric settings? (0/1)> ";
+			cout << "Change integrator settings? (0/1)> ";
 			cin >> more;
 			if (more > 0) {
 				cout << "Use Lagranto-style UVW? (0/1)> ";
@@ -128,6 +115,9 @@ int main(int argc, char *argv[])
 				cout << "Use which integrator?\n 0) Runge-Kutta 4\n 1) Iterative Euler\n> ";
 				cin >> input;
 				if (input == 1) imp.setIntegratorToIterativeEuler();
+				cout << "Use time-invariant UVW? (0/1)> ";
+				cin >> input;
+				if (input == 1) imp.setTimeInvariant(true);
 			}
 
 			cout << "This will trace a total of " << nPaths << " trajectories (" << paths_dim[0] << " x " << paths_dim[1] << " x " << paths_dim[2] << ")\n";
