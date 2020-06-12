@@ -145,11 +145,11 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	}
 
 	//oh, and write the initial points
-	double lon, lat;
 	for (int i = 0; i < td.num_trajectories; ++i) {
 		td.val(rlon_id, i, 0) = position[i][0];
 		td.val(rlat_id, i, 0) = position[i][1];
 		td.val(z_id, i, 0) = position[i][2];
+		double lon, lat;
 		CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
 		td.val(lon_id, i, 0) = lon;
 		td.val(lat_id, i, 0) = lat;
@@ -163,9 +163,8 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	//--------------------- Where particles are traced and paths filled
 	// compute trajectories
 	int nSteps = ceil((td.time_end - td.time_begin) / dt);
-	cout << "There will be " << nSteps << " steps.\n";
 	double t = td.time_begin;
-	for (int step_i = 1; step_i < td.points_per_trajectory; ++step_i) {
+	for (size_t step_i = 1; step_i < td.points_per_trajectory; ++step_i) {
 	//for (double t = td.time_begin; t < td.time_end; t += dt) {
 		cout << "Begin step " << step_i<<"   at time "<< t << endl;
 		double dt_real = step_i == td.points_per_trajectory - 1 ? td.time_end - t : dt;
@@ -200,15 +199,17 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 				else
 					position[i] = tracer.traceParticleIterativeEuler(UVW, position[i], t, dt_real, 3);
 			}
-			td.val(rlon_id, i, step_i) = position[i][0];
-			td.val(rlat_id, i, step_i) = position[i][1];
-			td.val(z_id, i, step_i) = position[i][2];
+			const size_t data_i = step_i * td.num_trajectories + i;
+			td.data[rlon_id][data_i] = position[i][0];
+			td.data[rlat_id][data_i] = position[i][1];
+			td.data[z_id][data_i] = position[i][2];
+			double lon, lat;
 			CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
-			td.val(lon_id, i, step_i) = lon;
-			td.val(lat_id, i, step_i) = lat;
+			td.data[lon_id][data_i] = lon;
+			td.data[lat_id][data_i] = lat;
 			for (int j = 0; j < other_var_fields.size(); ++j) {
 				Vec3d coord(position[i][0], position[i][1], position[i][2]);
-				td.val(other_vars[j], i, step_i + 1) = other_var_fields[j].Sample(coord, t + dt_real);
+				td.data[other_vars[j]][data_i] = other_var_fields[j].Sample(coord, t + dt_real);
 			}
 		}
 		t += dt_real;

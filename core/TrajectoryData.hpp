@@ -7,8 +7,8 @@
 // Struct for the kind of data we want as output
 struct TrajectoryData {
 	// info about trajectories
-	int num_trajectories;
-	int points_per_trajectory;
+	size_t num_trajectories;
+	size_t points_per_trajectory;
 	float time_begin, time_end;// in seconds
 
 	// info that is constant across my input data
@@ -62,7 +62,7 @@ struct TrajectoryData {
 		return data[var_id][trajectory_id + point_i * num_trajectories];
 	}
 
-	float& val(int var_id, int trajectory_id, int point_i) {
+	float& val(size_t var_id, size_t trajectory_id, size_t point_i) {
 		return data[var_id][trajectory_id + point_i * num_trajectories];
 	}
 };
