@@ -6,7 +6,6 @@ template<typename TValueType, size_t TDimensions>
 class TimeRelatedFields: public ISampleField<TValueType, TDimensions>
 {
 public:
-	//TODO enable backward timestep
 	TimeRelatedFields(int size) {
 		assert(size > 0);
 		current_time = 0.0;

@@ -73,20 +73,14 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 	const int rlat_i = std::min(std::max(0, (int)std::floor(rlat_d)), res_y - 1);
 	const float wx = rlon_d - rlon_i;
 	const float wy = rlat_d - rlat_i;
-
 	for (int stag = 0; stag < 2; ++stag) {
 		int lvl_i = lvl_d[stag];
+		if (lvl_i<0 || lvl_i> U->GetResolution()[2] - 2) continue;
 		double wz = lvl_d[stag] - lvl_i;
 
 		Vec3i gcs[8];
 		double ws[8];
-		for (int i = 0; i < 2; ++i) {
-			for (int j = 0; j < 2; ++j) {
-				for (int k = 0; k < 2; ++k) {
-					ws[4 * i + 2 * j + k] = 0;
-				}
-			}
-		}
+
 		ws[0] = (1 - wx) * (1 - wy) * (1 - wz); gcs[0] = Vec3i(rlon_i, rlat_i, lvl_i);
 		ws[1] = wx * (1 - wy) * (1 - wz); gcs[1] = Vec3i(rlon_i + 1, rlat_i, lvl_i);
 		ws[2] = (1 - wx) * wy * (1 - wz); gcs[2] = Vec3i(rlon_i, rlat_i + 1, lvl_i);
@@ -121,7 +115,7 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 	float deltay = 111200;
 	uvw[1] /= deltay;
 	uvw[0] /= deltay * cos(coord[1] * 3.1415926535 / 180.0);
-
+	//cout << "uvw: " << uvw[0] << " " << uvw[1] << " " << uvw[2]<<endl;
 	return uvw;
 }
 
