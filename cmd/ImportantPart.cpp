@@ -134,16 +134,6 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		else other_vars.push_back(i);
 	}
 
-	// need another two fields per other variable
-	vector<TimeRelatedFields<float, 3>> other_var_fields(other_vars.size(), 2);
-	for (int i = 0; i < other_var_fields.size(); ++i) {
-		for (int j = 0; j < 2; ++j) {
-			RegScalarField3f* field = NetCDF::ImportScalarField3f(files[j], td.varnames[other_vars[i]], "rlon", "rlat", "level");
-			other_var_fields[i].InsertNextField(field, file_t[i]);
-		}
-		if (backward) other_var_fields[i].setBackward(true);
-	}
-
 	//oh, and write the initial points
 	for (int i = 0; i < td.num_trajectories; ++i) {
 		td.val(rlon_id, i, 0) = position[i][0];
@@ -153,10 +143,6 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
 		td.val(lon_id, i, 0) = lon;
 		td.val(lat_id, i, 0) = lat;
-		for (int j = 0; j < other_var_fields.size(); ++j) {
-			Vec3d coord(position[i][0], position[i][1], position[i][2]);
-			td.val(other_vars[j], i, 0) = other_var_fields[j].Sample(coord, td.time_begin);
-		}
 		td.times[0] = td.time_begin;
 	}
 
@@ -165,13 +151,11 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	int nSteps = ceil((td.time_end - td.time_begin) / dt);
 	double t = td.time_begin;
 	for (size_t step_i = 1; step_i < td.points_per_trajectory; ++step_i) {
-	//for (double t = td.time_begin; t < td.time_end; t += dt) {
 		cout << "Begin step " << step_i<<"   at time "<< t << endl;
 		double dt_real = step_i == td.points_per_trajectory - 1 ? td.time_end - t : dt;
 		// insert new files if necessary
 		bool need_new_file = backward ? (t <= file_t[file_i + 1]) : t >= file_t[file_i + 1];
 		if (need_new_file) {
-		//if (t >= file_t[file_i + 1]) {
 			if (files.size() > file_i + 3) {
 				if (!use_lagranto_uvw)
 					UVW.InsertNextField(new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl), file_t[file_i + 3]);
@@ -179,15 +163,6 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 					UVW.InsertNextField(new LagrantoUVW(files[file_i + 3], hhl), file_t[file_i + 3]);
 			}
 			++file_i;
-		}
-		//TODO is this wrong? eh, it's something that should change anyway
-		need_new_file = backward ? (t + dt_real < file_t[file_i + 1]) : t + dt_real > file_t[file_i + 1];
-		if (need_new_file) {
-		//if (t + dt > file_t[file_i + 1]) {
-			for (int i = 0; i < other_var_fields.size(); ++i) {
-				RegScalarField3f* field = NetCDF::ImportScalarField3f(files[file_i + 2], td.varnames[other_vars[i]], "rlon", "rlat", "level");
-				other_var_fields[i].InsertNextField(field, file_t[file_i + 2]);
-			}
 		}
 		// propagate all active trajectories by one timestep
 		#pragma omp parallel for
@@ -207,13 +182,41 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
 			td.data[lon_id][data_i] = lon;
 			td.data[lat_id][data_i] = lat;
-			for (int j = 0; j < other_var_fields.size(); ++j) {
-				Vec3d coord(position[i][0], position[i][1], position[i][2]);
-				td.data[other_vars[j]][data_i] = other_var_fields[j].Sample(coord, t + dt_real);
-			}
 		}
 		t += dt_real;
 		td.times[step_i] = t;
+	}
+	//--------------------- get scalar extra variables
+	for (int var_i = 0; var_i < other_vars.size(); ++var_i) {
+		cout << "now sampling " << td.varnames[other_vars[var_i]] << endl;
+		// initialize current fields and variables
+		TimeRelatedFields<float, 3 > fields(2);
+		for (int j = 0; j < 2; ++j) {
+			RegScalarField3f* field = NetCDF::ImportScalarField3f(files[j], td.varnames[other_vars[var_i]], "rlon", "rlat", "level");
+			fields.InsertNextField(field, file_t[var_i]);
+		}
+		if (backward) fields.setBackward(true);
+		int file_i = 0;
+		int id = td.get_var_id(td.varnames[other_vars[var_i]]);
+
+		// go over all points
+		for (size_t step_i = 0; step_i < td.points_per_trajectory; ++step_i) {
+			double t = td.times[step_i];
+			bool need_new_file = backward ? (t < file_t[file_i + 1]) : t > file_t[file_i + 1];
+			if (need_new_file) {
+				RegScalarField3f* field = NetCDF::ImportScalarField3f(files[file_i + 2], td.varnames[other_vars[var_i]], "rlon", "rlat", "level");
+				fields.InsertNextField(field, file_t[file_i + 2]);
+				++file_i;
+			}
+
+			for (size_t traj_i=0; traj_i < td.num_trajectories; ++traj_i) {
+				Vec3d coord(td.val(rlon_id,traj_i,step_i), td.val(rlat_id, traj_i, step_i), td.val(z_id, traj_i, step_i));
+				td.val(id, traj_i, step_i) = fields.Sample(coord, t);
+				//if(traj_i == 0)
+				//cout << ": tdval "<< td.val(id, traj_i, step_i) <<endl;
+			}
+		}
+
 	}
 	//--------------------- the end
 	std::cout << "Trajectories have been computed\n";
