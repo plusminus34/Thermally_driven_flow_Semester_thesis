@@ -17,6 +17,9 @@ LagrantoUVW::LagrantoUVW(string filename, RegScalarField3f * levelToHeight)
 	y0 = hhl->GetDomain().GetMin()[1];
 	x1 = hhl->GetDomain().GetMax()[0];
 	y1 = hhl->GetDomain().GetMax()[1];
+
+	cout << "hhl has " << hhl->GetResolution()[2] << " levels"<<endl;
+	cout << "  lvl_top: " << lvl_top << endl;
 }
 
 LagrantoUVW::~LagrantoUVW()
@@ -28,6 +31,7 @@ LagrantoUVW::~LagrantoUVW()
 
 Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 {
+	if (z_sampling_alternative) return alternativeSample(coord);
 	Vec3f uvw(0, 0, 0);
 
 	double rlon_d = (coord[0] - x0) / (x1 - x0) * (res_x - 1);
@@ -69,8 +73,8 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 	lvl_d[0] -= 0.0;//1.0;
 	lvl_d[1] -= 1.0;//2.0;
 
-	const int rlon_i = std::min(std::max(0, (int)std::floor(rlon_d)), res_x - 1);
-	const int rlat_i = std::min(std::max(0, (int)std::floor(rlat_d)), res_y - 1);
+	const int rlon_i = std::min(std::max(0, (int)std::floor(rlon_d)), res_x - 2);
+	const int rlat_i = std::min(std::max(0, (int)std::floor(rlat_d)), res_y - 2);
 	const float wx = rlon_d - rlon_i;
 	const float wy = rlat_d - rlat_i;
 	for (int stag = 0; stag < 2; ++stag) {
@@ -101,16 +105,7 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 		}
 	}
 
-	/*
 	// rescale to rlon/s rlat/s m/s
-	double lon, lat;
-	CoordinateTransform::RlatRlonToLatLon(coord[1], coord[0], lat, lon);
-	double dlon, dlat;
-	CoordinateTransform::degreeLengthsSimple(lat, dlat, dlon);
-	if (dlon != 0) uvw[0] /= dlon;
-	else uvw[0] = 0;
-	uvw[1] /= dlat;
-	*/
 	//cout << "uvw unmodified " << uvw[0] << " " << uvw[1] << " " << uvw[2] << endl;
 	float deltay = 111200;
 	uvw[1] /= deltay;
@@ -122,8 +117,8 @@ Vec3f LagrantoUVW::Sample(const Vec3d & coord) const
 float LagrantoUVW::sampleHHL(double rlon_d, double rlat_d, int level, bool destagger) const
 {
 	float res = 0;
-	const int rlon_i = std::min(std::max(0, (int)std::floor(rlon_d)), res_x - 1);
-	const int rlat_i = std::min(std::max(0, (int)std::floor(rlat_d)), res_y - 1);
+	const int rlon_i = std::min(std::max(0, (int)std::floor(rlon_d)), res_x - 2);
+	const int rlat_i = std::min(std::max(0, (int)std::floor(rlat_d)), res_y - 2);
 	const float w0 = rlon_d - rlon_i;
 	const float w0o = 1 - w0;
 	const float w1 = rlat_d - rlat_i;
@@ -138,4 +133,62 @@ float LagrantoUVW::sampleHHL(double rlon_d, double rlat_d, int level, bool desta
 	}
 	if (destagger) res *= 0.5f;
 	return res;
+}
+
+Vec3f LagrantoUVW::alternativeSample(const Vec3d & coord) const
+{
+	//TODO returns BS it seems
+	Vec3f uvw(0, 0, 0);
+
+	const double rlon_d = (coord[0] - x0) / (x1 - x0) * (res_x - 1);
+	const double rlat_d = (coord[1] - y0) / (y1 - y0) * (res_y - 1);
+	const int rlon_i = std::min(std::max(0, (int)std::floor(rlon_d)), res_x - 2);
+	const int rlat_i = std::min(std::max(0, (int)std::floor(rlat_d)), res_y - 2);
+
+	double h = coord[2];
+	for (int i = rlon_i; i < rlon_i + 2; ++i) {
+		const float wx = i > rlon_i ? rlon_d - rlon_i : rlon_i + 1 - rlon_d;
+		for (int j = rlat_i; j < rlat_i + 2; ++j) {
+			//TODO ij out of bounds
+			const float wy = j > rlat_i ? rlat_d - rlat_i : rlat_i + 1 - rlat_d;
+			int lvl_0 = 0;
+			int lvl_1 = hhl->GetResolution()[2]-2;//lvl_top-1;
+
+			float h0, h1, hh;
+
+			cout << "get h0 from " << lvl_0 << " " << lvl_0 + 1 << endl;
+			h0 = (hhl->GetVertexDataAt(Vec3i(i, j, lvl_0)) + hhl->GetVertexDataAt(Vec3i(i, j, lvl_0 + 1)))*0.5f;
+			cout << "get h1 from " << lvl_1 << " " << lvl_1 + 1 << endl;
+			cout << " and ij " << i << " " << j << " of " << hhl->GetResolution()[0] << " " << hhl->GetResolution()[1] << endl;
+			h1 = (hhl->GetVertexDataAt(Vec3i(i, j, lvl_1)) + hhl->GetVertexDataAt(Vec3i(i, j, lvl_1 + 1)))*0.5f;
+			cout << "ok\n";
+			if (h > h0 || h < h1) return Vec3f(0, 0, 0);
+
+
+			while (lvl_1 > lvl_0 + 1) {
+				int half = (lvl_1 + lvl_0) / 2;
+				cout << "get hh from " << half << " " << half + 1 << endl;
+				hh = (hhl->GetVertexDataAt(Vec3i(i, j, half)) + hhl->GetVertexDataAt(Vec3i(i, j, half + 1)))*0.5f;
+				if (hh < h) {
+					lvl_1 = half;
+					h1 = hh;
+				}
+				else {
+					lvl_0 = half;
+					h0 = hh;
+				}
+			}
+			cout << "found h " << h << " at levels " << lvl_0 << " " << lvl_1 << " with h " << h0 << " " << h1 << endl;
+
+			float alpha = (h - h0) / (h1 - h0);
+			//TODO
+			uvw[0] += U->GetVertexDataAt(Vec3i(i, j, lvl_0)) * wx*wy*(1 - alpha);
+			uvw[0] += U->GetVertexDataAt(Vec3i(i, j, lvl_1)) * wx*wy*alpha;
+			uvw[1] += V->GetVertexDataAt(Vec3i(i, j, lvl_0)) * wx*wy*(1 - alpha);
+			uvw[1] += V->GetVertexDataAt(Vec3i(i, j, lvl_1)) * wx*wy*alpha;
+			uvw[2] += W->GetVertexDataAt(Vec3i(i, j, lvl_0)) * wx*wy*(1 - alpha);
+			uvw[2] += W->GetVertexDataAt(Vec3i(i, j, lvl_1)) * wx*wy*alpha;
+		}
+	}
+	return uvw;
 }

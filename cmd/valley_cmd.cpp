@@ -111,7 +111,12 @@ int main(int argc, char *argv[])
 			if (more > 0) {
 				cout << "Use Lagranto-style UVW? (0/1)> ";
 				cin >> input;
-				imp.setUseLagrantoUVW((bool)input);
+				if (input == 1) {
+					imp.setUseLagrantoUVW(true);
+					cout << "Use level interpolation on four columns? (0/1)> ";
+					cin >> input;
+					imp.setZInterpolationFlag((bool)input);
+				}
 				cout << "Use which integrator?\n 0) Runge-Kutta 4\n 1) Iterative Euler\n> ";
 				cin >> input;
 				if (input == 1) imp.setIntegratorToIterativeEuler();
@@ -128,7 +133,6 @@ int main(int argc, char *argv[])
 		string name = "";
 		cout << "Enter a name for points/trajectory> ";
 		cin >> name;
-		bool lagrantostyle = name[0] == 'L';
 
 		// Prepare tracing
 		td.num_trajectories = nPaths;
@@ -183,8 +187,9 @@ int main(int argc, char *argv[])
 		// Do the important part
 		imp.computeTrajectoryData(td);
 
-		NetCDF::WriteTrajectoryData("trajectory_" + name + ".nc", td);
-		//NetCDF::WriteTrajectoryData(name + "_trajectory" + ".nc", td);
+		string trajectory_file = "trajectory_" + name + ".nc";
+		cout << "Writing trajectories to " << trajectory_file << "...\n";
+		NetCDF::WriteTrajectoryData(trajectory_file, td);
 		cout << "Finished" << endl;
 	}
 	else if (input < 2) {
@@ -239,18 +244,6 @@ int main(int argc, char *argv[])
 		std::cout << "Checking values afterwards...\n";
 		int64_t field_size = (int64_t)field->GetResolution()[0] * field->GetResolution()[1] * field->GetResolution()[2];
 		int64_t checkpoint = field_size / 50;
-		/*
-	#ifdef NDEBUG
-	#pragma omp parallel for schedule(dynamic,16)
-	#endif
-		for (int64_t linearIndex = 0; linearIndex < field_size ; ++linearIndex)
-		{
-			Vec3i gridCoord = field->GetGridCoord(linearIndex);
-			float value = field->GetVertexDataAt(gridCoord);
-			// do something with value
-			//if (linearIndex % checkpoint == 0) { std::cout << linearIndex << " of " << field_size<<std::endl; }
-		}
-		*/
 
 		if (!custom) {
 			RegVectorField3f* vecField = UVWFromNCFile(path);

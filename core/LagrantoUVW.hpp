@@ -14,6 +14,9 @@ public:
 
 	virtual Vec3f Sample(const Vec3d& coord) const override;
 
+	bool getZSamplingAlternative() const { return z_sampling_alternative; }
+	void setZSamplingAlternative(bool value) { z_sampling_alternative = value; }
+
 private:
 	RegScalarField3f* hhl;
 	RegScalarField3f* U;
@@ -24,4 +27,7 @@ private:
 	double x0, y0, x1, y1, dx, dy;
 
 	float sampleHHL(double rlon_d, double rlat_d, int level, bool destagger) const;
+
+	bool z_sampling_alternative = false;
+	Vec3f alternativeSample(const Vec3d& coord) const;
 };

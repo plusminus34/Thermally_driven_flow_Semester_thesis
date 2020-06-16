@@ -101,8 +101,11 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	for (int i = 0; i < 3; ++i) {
 		if (!use_lagranto_uvw)
 			UVW.InsertNextField(new RlonRlatHField_Vec3f(UVWFromNCFile(files[i]), hhl), file_t[i]);
-		else
-			UVW.InsertNextField(new LagrantoUVW(files[i], hhl), file_t[i]);
+		else {
+			LagrantoUVW* field = new LagrantoUVW(files[i], hhl);
+			field->setZSamplingAlternative(z_interpolation_flag);
+			UVW.InsertNextField(field, file_t[i]);
+		}
 	}
 	if (backward) UVW.setBackward(true);
 
@@ -159,8 +162,11 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 			if (files.size() > file_i + 3) {
 				if (!use_lagranto_uvw)
 					UVW.InsertNextField(new RlonRlatHField_Vec3f(UVWFromNCFile(files[file_i + 3]), hhl), file_t[file_i + 3]);
-				else
-					UVW.InsertNextField(new LagrantoUVW(files[file_i + 3], hhl), file_t[file_i + 3]);
+				else {
+					LagrantoUVW* field = new LagrantoUVW(files[file_i + 3], hhl);
+					field->setZSamplingAlternative(z_interpolation_flag);
+					UVW.InsertNextField(field, file_t[file_i + 3]);
+				}
 			}
 			++file_i;
 		}
@@ -220,70 +226,4 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	}
 	//--------------------- the end
 	std::cout << "Trajectories have been computed\n";
-}
-
-void ImportantPart::computeTrajectoryDataTEST(TrajectoryData & td)
-{
-	//--------------------- Initialization
-	// see that data has correct sizes
-	td.data.resize(td.varnames.size());
-	for (int i = 0; i < td.varnames.size(); ++i) {
-		td.data[i].resize(td.num_trajectories*td.points_per_trajectory);
-	}
-
-	// name of the file containing constants (read: HHL)
-	string constantsfile = basefilename + IntToDDHHMMSS(file_t0) + 'c' + fileending;
-
-	ParticleTracer<Vec3f, 3> tracer;
-
-	// Helping: Map of level to acutal height in meters
-	RegScalarField3f* hhl = NetCDF::ImportScalarField3f(constantsfile, "HHL", "rlon", "rlat", "level1");
-
-	//This is the only field used for now
-	LagrantoUVW luv(basefilename + IntToDDHHMMSS(file_t0) + fileending, hhl);
-
-	// store current position of each trajectory
-	vector<Vec3f> position(td.num_trajectories);
-	for (int i = 0; i < position.size(); ++i) {
-		position[i] = trajectories[i][0];
-	}
-
-	// Figure out which variables are stored where
-	int rlon_id, rlat_id, z_id, lon_id, lat_id;
-	for (int i = 0; i < td.varnames.size(); ++i) {
-		if (td.varnames[i] == "rlon") rlon_id = i;
-		else if (td.varnames[i] == "rlat") rlat_id = i;
-		else if (td.varnames[i] == "z") z_id = i;
-		else if (td.varnames[i] == "lon") lon_id = i;
-		else if (td.varnames[i] == "lat") lat_id = i;
-	}
-
-	//oh, and write the initial points
-	double lon, lat;
-	for (int i = 0; i < td.num_trajectories; ++i) {
-		td.val(rlon_id, i, 0) = position[i][0];
-		td.val(rlat_id, i, 0) = position[i][1];
-		td.val(z_id, i, 0) = position[i][2];
-		CoordinateTransform::RlatRlonToLatLon(position[i][1], position[i][0], lat, lon);
-		td.val(lon_id, i, 0) = lon;
-		td.val(lat_id, i, 0) = lat;
-	}
-
-	for (int traj = 0; traj < position.size();++traj) {
-		//cout << "coord "<<traj<<" begin: " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
-		int step_i = 1;
-		for (double t = td.time_begin; t < td.time_end; t += dt) {
-			position[traj] = tracer.traceParticleIterativeEuler(luv, start_t, luv, end_t, position[traj], t, dt, 3);
-
-			td.val(rlon_id, traj, step_i) = position[traj][0];
-			td.val(rlat_id, traj, step_i) = position[traj][1];
-			td.val(z_id, traj, step_i) = position[traj][2];
-			CoordinateTransform::RlatRlonToLatLon(position[traj][1], position[traj][0], lat, lon);
-			td.val(lon_id, traj, step_i) = lon;
-			td.val(lat_id, traj, step_i) = lat;
-			//cout << "coord t " << t + dt << ": " << position[traj][0] << " " << position[traj][1] << " " << position[traj][2] << endl;
-			//cout << "coord t " << t + dt << " lonlat: " << lon << " " << lat << " " << position[traj][2] << endl;
-			++step_i;
-		}
-	}
 }
