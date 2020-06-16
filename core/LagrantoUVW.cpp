@@ -149,25 +149,19 @@ Vec3f LagrantoUVW::alternativeSample(const Vec3d & coord) const
 	for (int i = rlon_i; i < rlon_i + 2; ++i) {
 		const float wx = i > rlon_i ? rlon_d - rlon_i : rlon_i + 1 - rlon_d;
 		for (int j = rlat_i; j < rlat_i + 2; ++j) {
-			//TODO ij out of bounds
 			const float wy = j > rlat_i ? rlat_d - rlat_i : rlat_i + 1 - rlat_d;
 			int lvl_0 = 0;
-			int lvl_1 = hhl->GetResolution()[2]-2;//lvl_top-1;
+			int lvl_1 = hhl->GetResolution()[2]-2;
 
 			float h0, h1, hh;
 
-			cout << "get h0 from " << lvl_0 << " " << lvl_0 + 1 << endl;
 			h0 = (hhl->GetVertexDataAt(Vec3i(i, j, lvl_0)) + hhl->GetVertexDataAt(Vec3i(i, j, lvl_0 + 1)))*0.5f;
-			cout << "get h1 from " << lvl_1 << " " << lvl_1 + 1 << endl;
-			cout << " and ij " << i << " " << j << " of " << hhl->GetResolution()[0] << " " << hhl->GetResolution()[1] << endl;
 			h1 = (hhl->GetVertexDataAt(Vec3i(i, j, lvl_1)) + hhl->GetVertexDataAt(Vec3i(i, j, lvl_1 + 1)))*0.5f;
-			cout << "ok\n";
 			if (h > h0 || h < h1) return Vec3f(0, 0, 0);
 
 
 			while (lvl_1 > lvl_0 + 1) {
 				int half = (lvl_1 + lvl_0) / 2;
-				cout << "get hh from " << half << " " << half + 1 << endl;
 				hh = (hhl->GetVertexDataAt(Vec3i(i, j, half)) + hhl->GetVertexDataAt(Vec3i(i, j, half + 1)))*0.5f;
 				if (hh < h) {
 					lvl_1 = half;
@@ -178,10 +172,9 @@ Vec3f LagrantoUVW::alternativeSample(const Vec3d & coord) const
 					h0 = hh;
 				}
 			}
-			cout << "found h " << h << " at levels " << lvl_0 << " " << lvl_1 << " with h " << h0 << " " << h1 << endl;
+			//cout << "found h " << h << " at levels " << lvl_0 << " " << lvl_1 << " with h " << h0 << " " << h1 << endl;
 
 			float alpha = (h - h0) / (h1 - h0);
-			//TODO
 			uvw[0] += U->GetVertexDataAt(Vec3i(i, j, lvl_0)) * wx*wy*(1 - alpha);
 			uvw[0] += U->GetVertexDataAt(Vec3i(i, j, lvl_1)) * wx*wy*alpha;
 			uvw[1] += V->GetVertexDataAt(Vec3i(i, j, lvl_0)) * wx*wy*(1 - alpha);
@@ -190,5 +183,11 @@ Vec3f LagrantoUVW::alternativeSample(const Vec3d & coord) const
 			uvw[2] += W->GetVertexDataAt(Vec3i(i, j, lvl_1)) * wx*wy*alpha;
 		}
 	}
+
+	// don't forget to rescale
+	const float deltay = 111200;
+	uvw[1] /= deltay;
+	uvw[0] /= deltay * cos(coord[1] * 3.1415926535 / 180.0);
+
 	return uvw;
 }
