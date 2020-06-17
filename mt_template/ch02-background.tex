@@ -1,0 +1,54 @@
+% set counter to n-1:
+\setcounter{chapter}{1}
+
+\chapter{Background}
+
+behold you unrepentant blasphemers
+
+\section{Data}
+We work on a set of NetCDF files containing assorted meteorological data. Most of the files contain data at a certain point in time and have names like "lfff00000000.nc". The number in the filename corresponds to the time past the reference time using the format DDHHMMSS, so for example "lfff00015000.nc" would contain the data at one hour and fifty minutes. In addition there is a file "lfff00000000c.nc" (note the c) which holds constant variables like the height of the surface.
+
+Most of the important variables are stored as three-dimensional arrays. The three dimensions are called $rlon$, $rlat$ and $level$. $rlon$ and $rlat$ are coordinates in a rotated geographical coordinate system. The $level$s correspond to the vertical position of a point, but it is not a simple linear transformation. Instead, the constants file holds the necessary information to convert $level$s to actual height. Further details in section TODO
+
+TODO make a table
+Interesting variables are
+%(data)			name		description	constant	staggered	unit
+%U				velocity of some sort	no			rlon		m/s	
+%V							=			no			rlat		m/s
+%W							=			no			level		m/s
+%HHL			level to height			yes			level		m
+%HSURF			surface height			yes			no, 2d		m
+%(P,T,RELHUM)	stuff					no			no			whatever
+
+%Sample references are~\cite{Zwicker04Perspective} and~\cite{Altman89QuaternionScandal}.
+
+\section{Conversion}
+The velocities $U$, $V$, $W$, as well as other variables like temperature, are defined on a regular grid with axes corresponding to ($rlon$, $rlat$, $level$). 
+
+%Rlon and rlat are longitude and latitude in a rotated system. Given the real longitude lambda and latitude phi of a given point, as well as the global coordinates of the rotated north pole pollam,polphi, the coordinates in the rotated system can be computed as
+$rlon$ and $rlat$ can be converted into $lon$ and $lat$ given the (global) coordinates of the rotated north pole ($\lambda_{pole}$, $\phi_{pole}$). It goes like this:
+\begin{equation}
+arg = \cos \phi_{pole} \cdot \cos rlat \cdot \cos rlon + \sin \phi_{pole} \cdot \sin rlat;
+\end{equation}
+\begin{equation}
+		lat = \sin^{-1} arg;
+\end{equation}
+\begin{equation}
+		c_1 = \sin \phi_{pole} \cdot \cos rlon \cdot \cos rlat + \cos \phi_{pole} \cdot \sin rlat
+\end{equation}
+\begin{equation}
+		c_2 = \sin rlon \cdot \cos rlat
+\end{equation}
+\begin{equation}
+		zarg1 = \sin \lambda_{pole} \cdot c_1 - \cos \lambda_{pole} \cdot c_2
+\end{equation}
+\begin{equation}
+		zarg2 = \cos \lambda_{pole} \cdot c_1 + \cos \lambda_{pole} \cdot c_2
+\end{equation}
+\begin{equation}
+		lon = atan2(zarg1,zarg2)
+\end{equation}
+(this would probably look nicer if I wrote $\phi_r$ instead of $rlat$ )
+
+The vertical coordinates $z$ are given in meters above sea level and need to be mapped to grid levels. To that purpose, we have a time-invariant scalar field $HHL$ which maps (staggered) levels at specific grid points to their height. There's a bit of a problem figuring out how to interpolate at coordinates somewhere inbetween: Do we construct an interpolated height level pillar thing, do we interpolate on four adjacent pillars or what you call them, or do something else
+
