@@ -554,24 +554,22 @@ bool NetCDF::WriteTrajectoryData(const std::string & path, const TrajectoryData 
 	// start writing
 	if (nc_enddef(ncid)) return false;
 	
-	// TODO these loops are probably inefficient, use nc_put_vara
+	// Write times in format hh.mm
 	for (int i = 0; i < td.points_per_trajectory; ++i) {
 		double t = td.times[i];
 		int hours = floor(t / 3600);
 		int minutes = floor((t - 3600 * hours) / 60);
-		double time = hours + 0.01*minutes;// format hh.mm
+		double time = hours + 0.01*minutes;
 		for (int j = 0; j < td.num_trajectories; ++j) {
 			size_t indexp[] = { i, j };
 			if (nc_put_var1_double(ncid, time_id, indexp, &time)) return false;
 		}
 	}
+	// write important data
+	size_t startp[] = { 0, 0 };
+	size_t countp[] = { td.points_per_trajectory, td.num_trajectories };
 	for (int i = 0; i < td.varnames.size(); ++i) {
-		for (int j = 0; j < td.points_per_trajectory; ++j) {
-			for (int k = 0; k < td.num_trajectories; ++k) {
-				size_t indexp[] = { j, k };
-				if (nc_put_var1_float(ncid, var_id[i], indexp, &td.data[i][k + j * td.num_trajectories])) return false;
-			}
-		}
+		if (status =nc_put_vara_float(ncid, var_id[i], startp, countp, td.data[i].data())) return false;
 	}
 
 	if (status = nc_close(ncid)) return false;
