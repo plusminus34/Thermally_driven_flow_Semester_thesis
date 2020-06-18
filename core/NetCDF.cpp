@@ -629,9 +629,9 @@ bool NetCDF::ReadTrajectoryData(const std::string & path, TrajectoryData & td)
 		double hhmm;
 		size_t indexp[] = { i, 0 };
 		if (status = nc_get_var1_double(ncid, time_id, indexp, &hhmm)) return false;
-		std::cout << " hhmm " << i << " : " << hhmm << std::endl;
+		//std::cout << " hhmm " << i << " : " << hhmm << std::endl;
 		td.times[i] = 3600 * floor(hhmm) + 6000 * (hhmm - floor(hhmm));
-		std::cout << "    and in seconds: " << td.times[i] << std::endl;
+		//std::cout << "    and in seconds: " << td.times[i] << std::endl;
 	}
 
 

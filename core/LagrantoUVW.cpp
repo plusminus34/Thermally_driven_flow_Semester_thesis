@@ -17,9 +17,6 @@ LagrantoUVW::LagrantoUVW(string filename, RegScalarField3f * levelToHeight)
 	y0 = hhl->GetDomain().GetMin()[1];
 	x1 = hhl->GetDomain().GetMax()[0];
 	y1 = hhl->GetDomain().GetMax()[1];
-
-	cout << "hhl has " << hhl->GetResolution()[2] << " levels"<<endl;
-	cout << "  lvl_top: " << lvl_top << endl;
 }
 
 LagrantoUVW::~LagrantoUVW()
