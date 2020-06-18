@@ -622,16 +622,16 @@ bool NetCDF::ReadTrajectoryData(const std::string & path, TrajectoryData & td)
 		td.data[i].resize(td.num_trajectories*td.points_per_trajectory);
 		float* rawdata = td.data[i].data();
 		if (status = nc_get_var_float(ncid, var_id, rawdata)) return false;
-		/*
-		printf(("Read variable " + td.varnames[i] + "\n").c_str());
-		for (int j = 0; j < td.points_per_trajectory; ++j) {
-			printf("\n");
-			for (int k = 0; k < td.num_trajectories; ++k) {
-				printf(" ");
-				printf(std::to_string(td.data[i][j*td.num_trajectories + k]).c_str());
-			}
-		}
-		*/
+	}
+	// read times
+	td.times.resize(td.points_per_trajectory);
+	for (int i = 0; i < td.points_per_trajectory; ++i) {
+		double hhmm;
+		size_t indexp[] = { i, 0 };
+		if (status = nc_get_var1_double(ncid, time_id, indexp, &hhmm)) return false;
+		std::cout << " hhmm " << i << " : " << hhmm << std::endl;
+		td.times[i] = 3600 * floor(hhmm) + 6000 * (hhmm - floor(hhmm));
+		std::cout << "    and in seconds: " << td.times[i] << std::endl;
 	}
 
 
