@@ -85,6 +85,8 @@ int main(int argc, char *argv[])
 					int_vert += sum_vert * dt;
 				}
 			}
+			int_horiz *= 0.5;
+			int_vert *= 0.5;
 
 			cout << "  Sum of horizontal distance differences: " << sum_horiz << endl;
 			cout << "  Sum of vertical distance differences: " << sum_vert << endl;
@@ -172,6 +174,9 @@ int main(int argc, char *argv[])
 			cout << "Change integrator settings? (0/1)> ";
 			cin >> more;
 			if (more > 0) {
+				cout << "Jump back into domain if leaving? (0/1)> ";
+				cin >> input;
+				imp.setJumpIntoDomain((bool)input);
 				cout << "Use Lagranto-style UVW? (0/1)> ";
 				cin >> input;
 				if (input == 1) {
@@ -179,6 +184,11 @@ int main(int argc, char *argv[])
 					cout << "Use level interpolation on four columns? (0/1)> ";
 					cin >> input;
 					imp.setZInterpolationFlag((bool)input);
+					if (input == 0) {
+						cout << "Use staggered HHL for unstaggered W? (0/1)> ";
+						cin >> input;
+						imp.setUseWrongW((bool)input);
+					}
 				}
 				cout << "Use which integrator?\n 0) Runge-Kutta 4\n 1) Iterative Euler\n> ";
 				cin >> input;
