@@ -36,8 +36,21 @@ void SceneWidget::CreateTestScene()
 
 	bool build_landscape = false;// TODO check if file exists automatically
 	bool use_rotated = false;//use rlonrlat (if false, lonlat are used)
+	int trajectory_set = 7;
+	int colordisplay = 3;//0: RGB, 1: Temperature, 2: Pressure, 3: relative humidity 
 
+	// potentially modified by trajectory set
 	int line_limit = 100;
+	int line_increment = 1;// only draw every x-th line
+
+	// constants for mapping variables to colors?
+	float T_min = 253.15f; int r_T_min = 50; int g_T_min = 50; int b_T_min = 255;
+	float T_0 = 273.15f;   int r_T_0 = 222;  int g_T_0 = 222; int b_T_0 = 222;
+	float T_max = 293.15f; int r_T_max = 255; int g_T_max = 150; int b_T_max = 50;
+	float P_min = 1; int r_P_min = 180; int g_P_min = 255; int b_P_min = 210;
+	float P_max = 2; int r_P_max = 180; int g_P_max = 20; int b_P_max = 20;
+	float RELHUM_min = 0; int r_RELHUM_min = 200; int g_RELHUM_min = 200; int b_RELHUM_min = 40;
+	float RELHUM_max = 1; int r_RELHUM_max = 0; int g_RELHUM_max = 0; int b_RELHUM_max = 255;
 
 	// display surface
 	vtkNew<vtkPolyDataMapper> landscapeMapper;
@@ -91,28 +104,106 @@ void SceneWidget::CreateTestScene()
 
 	vector<string> files(0);
 
-	int r[] = { 255,0,0 };
-	int g[] = { 0,255,0 };
-	int b[] = { 0,0,255 };
-	float thickness[] = { 1,2,3 };
+	int r[] = { 255,0,0, 255,255,0 };
+	int g[] = { 0,255,0, 255,0,255 };
+	int b[] = { 0,0,255, 0,255,255 };
+	float thickness[] = { 1,2,3,4,5,6 };
 
-	int lalala = 2;
-	if (lalala == 0) {
+	if (trajectory_set == 0) {
+		//jepp, die sind gleich
 		files.push_back("../../../outputs/trajectory_TEST_correctish.nc");
 		files.push_back("../../../outputs/lag_TEST.4");
 		thickness[0] = thickness[1] = 2;
-	}else if(lalala == 1) {
+	}else if(trajectory_set == 1) {
+		//konstantes Feld, RK vs Euler
+		// sind verschieden, siehe Westen: Meiner geht eher um Berge als durch
 		files.push_back("../../../outputs/trajectory_Lcomparison_const.nc");
-		files.push_back("../../../outputs/trajectory_comparison_const.nc");
+		//files.push_back("../../../outputs/trajectory_comparison_const.nc");
 		files.push_back("../../../outputs/trajectory_Lcomparison_const.4");
+		thickness[0] = thickness[1] = 2;
+		line_limit = 13;
 	}
-	else if (lalala == 2) {
+	else if (trajectory_set == 2) {
+		//Feld nicht konstant: sehr veschieden
+		// diesmal ist rot mein altes Feld, blau das Lagrantoartige
+		// Ein Problem von Lagranto: Es benutzt nur 2 Felder statt 6, das sie im Stundentakt statt Minutentakt liest
 		line_limit = 10;
 		files.push_back("../../../outputs/trajectory_comparison.nc");
 		files.push_back("../../../outputs/trajectory_Lcomparison.4");
 		files.push_back("../../../outputs/trajectory_Lcomparison.nc");
 		thickness[0] = thickness[2] = 1.5f;
 	}
+	else if (trajectory_set == 3) {
+		//Rueckwaerts tracen
+		// nicht sicher, was mit dem roten los ist: Blau hat die gleichen Einstellungen und funktioniert
+		files.push_back("../../../outputs/trajectory_backwardtest_TI.nc");
+		files.push_back("../../../outputs/trajectory_backwardtest.4");
+		files.push_back("../../../outputs/trajectory_backwardtest_TI1.nc");
+		thickness[0] = 1; thickness[1] = thickness[2] = 2;
+	}
+	else if (trajectory_set == 4) {
+		//Verschiedene Zeitschritte
+		string base = "../../../outputs/trajectory_compare_";
+		string end = ".nc";
+		string timestep[] = { "dt60","dt120","dt300" };
+		string integrator[] = {"rk_", "ie_"};//RungeKutta,IterativeEuler
+		line_limit = 10;
+		for (int i = 0; i < 6; ++i) {
+			int aa = i / 3;
+			int bb = i % 3;
+			files.push_back(base + integrator[aa] + timestep[bb] + end);
+			r[i] = 25 * aa * (2 + 4 * bb);
+			g[i] = 25 * (1-aa) * (2 + 4 * bb);
+			b[i] = 50*bb;
+			thickness[i] = 1 + 0.5*bb;
+		}
+	}
+	else if (trajectory_set == 5 || trajectory_set == 7) {
+		// Ein paar Orte, an denen ich mal war und die vielleicht gute Beispiele sind
+		if (trajectory_set == 5) {
+			files.push_back("../../../outputs/trajectory_luzern_wohin.nc");
+			files.push_back("../../../outputs/trajectory_luzern_woher.nc");
+			files.push_back("../../../outputs/trajectory_thusis_wohin.nc");
+			files.push_back("../../../outputs/trajectory_thusis_woher.nc");
+			files.push_back("../../../outputs/trajectory_zermatt_wohin.nc");
+			files.push_back("../../../outputs/trajectory_zermatt_woher.nc");
+			line_limit = 1000;
+			line_increment = 10;
+		}
+		else {
+			files.push_back("../../../outputs/trajectory_luzern_wohin_620.nc");
+			files.push_back("../../../outputs/trajectory_luzern_woher_620.nc");
+			files.push_back("../../../outputs/trajectory_thusis_wohin_620.nc");
+			files.push_back("../../../outputs/trajectory_thusis_woher_620.nc");
+			files.push_back("../../../outputs/trajectory_zermatt_wohin_620.nc");
+			files.push_back("../../../outputs/trajectory_zermatt_woher_620.nc");
+			line_limit = 10000000;
+			line_increment = 1;
+		}
+		for (int i = 0; i < files.size(); ++i) {
+			thickness[i] = thickness[0];
+			r[i] = i > 3 ? 255 : 0;
+			g[i] = i < 2 ? 255 : 70;
+			b[i] = i == 2 || i==3 ? 200 : 0;
+			if (i % 2) b[i] += 55;
+			else g[i] -= 70;
+		}
+	}
+	else if (trajectory_set == 6) {
+		//Test
+		files.push_back("../../../outputs/trajectory_test__lagrantolike.nc");
+		files.push_back("../../../outputs/trajectory_test__lagranto_betterW.nc");
+		files.push_back("../../../outputs/trajectory_test__mine.nc");
+		files.push_back("../../../outputs/trajectory_test__mine.nc");
+
+		line_limit = 25;
+		line_increment = 5;
+		r[0] = 0;   g[0] = 255; b[0] = 0;   thickness[0] = 2;
+		r[1] = 0;   g[1] = 255; b[1] = 255; thickness[1] = 1;
+		r[2] = 0;   g[2] = 0;   b[2] = 255; thickness[2] = 1.5;
+		r[3] = 255; g[3] = 0;   b[3] = 0;   thickness[3] = 1;
+	}
+
 	
 	vtkNew<vtkNamedColors> colors;
 
@@ -143,39 +234,93 @@ void SceneWidget::CreateTestScene()
 		assert(y_id > -1);
 		assert(z_id > -1);
 
-		//int T_id = td.get_var_id("T"); assert(T_id > -1);
-		//int P_id = td.get_var_id("P");
-		//int hum_id = td.get_var_id("RELHUM");
+		int T_id = td.get_var_id("T"); assert(T_id > -1);
+		int P_id = td.get_var_id("P");
+		int hum_id = td.get_var_id("RELHUM");
+
+		P_min = td.min_values[P_id];
+		P_max = td.max_values[P_id];
+		RELHUM_min = td.min_values[hum_id];
+		RELHUM_max = td.max_values[hum_id];
 
 		vtkNew<vtkUnsignedCharArray> colors;
-		colors->SetName("T_color");
+		colors->SetName("color");
 		colors->SetNumberOfComponents(3);
 		colors->SetNumberOfTuples(td.num_trajectories*td.points_per_trajectory);
 
-		int count =0;
 		for (int i = 0; i < td.num_trajectories; ++i) {
 			for (int j = 0; j < td.points_per_trajectory; ++j) {
-				//points->InsertNextPoint(i, j, i*j);
 				points->InsertNextPoint(td.val(x_id, i, j), td.val(y_id, i, j), td.val(z_id, i, j) * ZSCALE);
-				//points->InsertNextPoint(i,j*0.01,file_i);
 
-				//float sat = (td.val(T_id, i, j) - td.min_values[T_id]) / (td.max_values[T_id] - td.min_values[T_id]);
-				//float sat = (float)j / td.points_per_trajectory;
-				//float sat = (td.val(T_id, i, j) - 200) / (td.max_values[T_id] - 200);
-				//float sat = (td.val(hum_id, i, j) - td.min_values[hum_id]) / (td.max_values[hum_id] - td.min_values[hum_id]);
-				int ij = i * td.points_per_trajectory + j;
-				//colors->InsertTuple3(ij, (int)(100 + 155 * sat), (int)(150 - 140 * sat), (int)(255 - 255 * sat));
-				//colors->InsertTuple3(ij, 100*file_i, 100+5*j/td.points_per_trajectory, 5*i/td.num_trajectories);
-				//colors->InsertTuple3(ij, 100 * file_i, 240-100*file_i, 20);
-				//colors->InsertTuple3(ij, td.val(T_id, i, j)-100, 20 * j / td.points_per_trajectory, 25 * i / td.num_trajectories);
-				//colors->InsertTuple3(ij, 200*file_i, 255 - 250*file_i, 255);
-				colors->InsertTuple3(ij, r[file_i], g[file_i], b[file_i]);
+				const int ij = i * td.points_per_trajectory + j;
+				if (colordisplay == 0) {
+					//color
+					colors->InsertTuple3(ij, r[file_i], g[file_i], b[file_i]);
+				}
+				else if (colordisplay == 1) {
+					// temperature
+					const float T = td.val(T_id, i, j);
+					if (T < T_min) {
+						colors->InsertTuple3(ij, r_T_min, g_T_min, b_T_min);
+					}
+					else if (T < T_0) {
+						const float alpha = (T - T_min) / (T_0 - T_min);
+						const int r = r_T_min + alpha * (r_T_0 - r_T_min);
+						const int g = g_T_min + alpha * (g_T_0 - g_T_min);
+						const int b = b_T_min + alpha * (b_T_0 - b_T_min);
+						colors->InsertTuple3(ij, r, g, b);
+					}
+					else if (T < T_max) {
+						const float alpha = (T - T_0) / (T_max - T_0);
+						const int r = r_T_0 + alpha * (r_T_max - r_T_0);
+						const int g = g_T_0 + alpha * (g_T_max - g_T_0);
+						const int b = b_T_0 + alpha * (b_T_max - b_T_0);
+						colors->InsertTuple3(ij, r, g, b);
+					}
+					else {
+						colors->InsertTuple3(ij, r_T_max, g_T_max, b_T_max);
+					}
+				}
+				else if (colordisplay == 2) {
+					// pressure
+					const float P = td.val(P_id, i, j);
+					if (P < P_min) {
+						colors->InsertTuple3(ij, r_P_min, g_P_min, b_P_min);
+					}
+					else if (P < P_max) {
+						const float alpha = (P - P_min) / (P_max - P_min);
+						const int r = r_P_min + alpha * (r_P_max - r_P_min);
+						const int g = g_P_min + alpha * (g_P_max - g_P_min);
+						const int b = b_P_min + alpha * (b_P_max - b_P_min);
+						colors->InsertTuple3(ij, r, g, b);
+					}
+					else {
+						colors->InsertTuple3(ij, r_P_max, g_P_max, b_P_max);
+					}
+				}
+				else if (colordisplay == 3) {
+					// relative humidity
+					const float hum = td.val(hum_id, i, j);
+					if (hum < RELHUM_min) {
+						colors->InsertTuple3(ij, r_RELHUM_min, g_RELHUM_min, b_RELHUM_min);
+					}
+					else if (hum < RELHUM_max) {
+						const float alpha = (hum - RELHUM_min) / (RELHUM_max - RELHUM_min);
+						const int r = r_RELHUM_min + alpha * (r_RELHUM_max - r_RELHUM_min);
+						const int g = g_RELHUM_min + alpha * (g_RELHUM_max - g_RELHUM_min);
+						const int b = b_RELHUM_min + alpha * (b_RELHUM_max - b_RELHUM_min);
+						colors->InsertTuple3(ij, r, g, b);
+					}
+					else {
+						colors->InsertTuple3(ij, r_RELHUM_max, g_RELHUM_max, b_RELHUM_max);
+					}
+				}
 			}
 		}
 		//size_t nPts = points->GetNumberOfPoints();
 
 		vtkNew<vtkCellArray> cells;
-		for (int i = 0; i < line_limit && i < td.num_trajectories; ++i) {
+		for (int i = 0; i < line_limit*line_increment && i < td.num_trajectories; i+=line_increment) {
 			vtkNew<vtkPolyLine> polyLine;
 			polyLine->GetPointIds()->SetNumberOfIds(td.points_per_trajectory);
 			for (unsigned int j = 0; j < td.points_per_trajectory; j++)
@@ -194,7 +339,7 @@ void SceneWidget::CreateTestScene()
 		mapper->SetInputData(polyData);
 		mapper->ScalarVisibilityOn();
 		mapper->SetScalarModeToUsePointFieldData();
-		mapper->SelectColorArray("T_color");
+		mapper->SelectColorArray("color");
 
 		vtkNew<vtkActor> actor;
 		actor->SetMapper(mapper);
