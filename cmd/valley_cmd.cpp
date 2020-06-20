@@ -136,14 +136,16 @@ int main(int argc, char *argv[])
 			cout << "Input start and end time (Format: t0 t1)> "; cin >> t0; cin >> t1;
 			cout << "Input timestep> "; cin >> dt;
 			if (t1 < t0 && dt < 0) {
-				cout << "Sorry, backtracing has not been implemented yet.\n";
-				//continue;
+				//backtracing
 			}
 			else if (t1 > t0 && dt > 0) {
 				//standard case
 			}
+			else if ((t1 > t0 && dt < 0) || (t1 < t0 && dt > 0)) {
+				dt *= -1;
+			}
 			else {
-				cout << "This doesn't work, start over please.\n";
+				cout << "Time interval and timestep have to be nonzero, start over please.\n";
 				continue;
 			}
 			nSteps = ceil((t1 - t0) / dt);
