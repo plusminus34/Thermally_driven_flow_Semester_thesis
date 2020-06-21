@@ -187,14 +187,14 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 
 			// possibly jump back into the domain
 			if (jump_flag) {
-				if (position[i][0] < rlon_min) position[i][0] += 0.1f;
-				else if (position[i][0] > rlon_max) position[i][0] -= 0.1f;
-				if (position[i][1] < rlat_min) position[i][1] += 0.1f;
-				else if (position[i][1] > rlat_max) position[i][1] -= 0.1f;
+				if (position[i][0] < rlon_min) position[i][0] += 0.2f;
+				else if (position[i][0] > rlon_max) position[i][0] -= 0.2f;
+				if (position[i][1] < rlat_min) position[i][1] += 0.2f;
+				else if (position[i][1] > rlat_max) position[i][1] -= 0.2f;
 				float h_min = hsurf->Sample(Vec2d(position[i][0], position[i][1]));
 				float h_max = hhl->Sample(Vec2d(position[i][0], position[i][1], 0));//TODO seems constant
-				if (position[i][2] < h_min) position[i][2] += 100;
-				else if (position[i][2] > h_max) position[i][2] -= 100;
+				if (position[i][2] < h_min) position[i][2] += 200;
+				else if (position[i][2] > h_max) position[i][2] -= 200;
 			}
 
 			const size_t data_i = step_i * td.num_trajectories + i;
@@ -234,7 +234,38 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 
 			for (size_t traj_i=0; traj_i < td.num_trajectories; ++traj_i) {
 				Vec3d coord(td.val(rlon_id,traj_i,step_i), td.val(rlat_id, traj_i, step_i), td.val(z_id, traj_i, step_i));
-				td.val(id, traj_i, step_i) = fields.Sample(coord, t);
+				//TODO NOOOOOOOOOOOOOO, don't sample fields at nonlevel-coordinate!
+				{
+					double h = coord[2];
+					double lvl_d;
+						int lvl_0 = 0;
+						int lvl_1 = hhl->GetResolution()[2] - 1;
+
+						float h0, h1, hh;
+
+						h0 = hhl->Sample(Vec3d(coord[0], coord[1], lvl_0));
+						h1 = hhl->Sample(Vec3d(coord[0], coord[1], lvl_1));
+
+						if (h > h0 || h < h1) td.val(id, traj_i, step_i) = 0;
+
+						while (lvl_1 > lvl_0 + 1) {
+							int half = (lvl_1 + lvl_0) / 2;
+							//cout << "half " << half << " between " << lvl_1 << " and " << lvl_0 << endl;
+							hh = hhl->Sample(Vec3d(coord[0], coord[1], half));
+							if (hh < h) {
+								lvl_1 = half;
+								h1 = hh;
+							}
+							else {
+								lvl_0 = half;
+								h0 = hh;
+							}
+						}
+						coord[2] = hh;
+						td.val(id, traj_i, step_i) = fields.Sample(coord, t);
+				}
+				//td.val(id, traj_i, step_i) = fields.Sample(coord, t);
+
 				//if(traj_i == 0)
 				//cout << ": tdval "<< td.val(id, traj_i, step_i) <<endl;
 			}
