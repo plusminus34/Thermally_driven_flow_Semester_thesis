@@ -38,6 +38,8 @@ public:
 			}
 		}
 		if (ia == -1) return TValueType();
+		if (abs(wa) < 1e-5) return fields[ib]->Sample(coord);
+		else if(abs(wb) < 1e-5) return fields[ia]->Sample(coord);
 		return fields[ia]->Sample(coord)*wa + fields[ib]->Sample(coord)*wb;
 	}
 	// sample at the currently stored time

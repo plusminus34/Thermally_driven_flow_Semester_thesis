@@ -26,9 +26,74 @@ int main(int argc, char *argv[])
 	std::cout << "0:\tRead and interpolate UVW field\n";
 	std::cout << "1:\tRead custom field\n";
 	std::cout << "2:\tRead UVW and trace particles\n";
-	std::cout << "3:\tDebug output\n> ";
+	std::cout << "3:\tCompare trajectories\n";
+	std::cout << "4:\tDebug output\n> ";
 	cin >> input;
-	if (input == 3) {
+	if (input == 4) {
+		return 0;
+	}
+	else if (input == 3) {
+		string file_a = "trajectory_test_longtime.nc";
+		string file_b = "trajectory_test_longtime2.nc";
+
+		TrajectoryData td_a, td_b;
+		NetCDF::ReadTrajectoryData(file_a, td_a);
+		NetCDF::ReadTrajectoryData(file_b, td_b);
+
+		size_t n_tra = td_a.num_trajectories;
+		size_t n_tim = td_b.points_per_trajectory;
+
+		if (n_tra != td_b.num_trajectories) {
+			cout << "Error: Different number of trajectories\n";
+			return 1;
+		}
+		if (n_tim != td_b.points_per_trajectory) {
+			cout << "Error: Different number of timesteps\n";
+			return 1;
+		}
+
+		cout << "timessize " << td_a.times.size()<<endl;
+
+		int lon_id = td_a.get_var_id("lon");
+		int lat_id = td_a.get_var_id("lat");
+		int rlon_id = td_a.get_var_id("rlon");
+		int rlat_id = td_a.get_var_id("rlat");
+		int z_id = td_a.get_var_id("z");
+		//TODO check that a and b have the same ids
+
+		for (int i = 0; i < n_tra; ++i) {
+			cout << "Comparing trajectory " << i << endl;
+			double sum_horiz = 0;
+			double sum_vert = 0;
+			double int_horiz = 0;
+			double int_vert = 0;
+
+			for (int j = 0; j < n_tim; ++j) {
+				float dx = td_a.val(rlon_id, i, j) - td_b.val(rlon_id, i, j);
+				float dy = td_a.val(rlat_id, i, j) - td_b.val(rlat_id, i, j);
+				float dz = td_a.val(z_id, i, j) - td_b.val(z_id, i, j);
+				sum_horiz += sqrt(dx*dx + dy * dy);
+				sum_vert += abs(dz);
+				if (j > 0) {
+					double dt = td_a.times[j] - td_a.times[j-1];
+					int_horiz += sum_horiz*dt;
+					int_vert += sum_vert*dt;
+				}
+				if (j < n_tim - 1) {
+					double dt = td_a.times[j + 1] - td_a.times[j];
+					int_horiz += sum_horiz * dt;
+					int_vert += sum_vert * dt;
+				}
+			}
+			int_horiz *= 0.5;
+			int_vert *= 0.5;
+
+			cout << "  Sum of horizontal distance differences: " << sum_horiz << endl;
+			cout << "  Sum of vertical distance differences: " << sum_vert << endl;
+			cout << "  Integrated horizontal distance differences: " << int_horiz << endl;
+			cout << "  Integrated vertical distance differences: " << int_vert << endl;
+		}
+
 		return 0;
 	}
 	else if (input == 2) {
@@ -71,14 +136,16 @@ int main(int argc, char *argv[])
 			cout << "Input start and end time (Format: t0 t1)> "; cin >> t0; cin >> t1;
 			cout << "Input timestep> "; cin >> dt;
 			if (t1 < t0 && dt < 0) {
-				cout << "Sorry, backtracing has not been implemented yet.\n";
-				//continue;
+				//backtracing
 			}
 			else if (t1 > t0 && dt > 0) {
 				//standard case
 			}
+			else if ((t1 > t0 && dt < 0) || (t1 < t0 && dt > 0)) {
+				dt *= -1;
+			}
 			else {
-				cout << "This doesn't work, start over please.\n";
+				cout << "Time interval and timestep have to be nonzero, start over please.\n";
 				continue;
 			}
 			nSteps = ceil((t1 - t0) / dt);
@@ -109,6 +176,9 @@ int main(int argc, char *argv[])
 			cout << "Change integrator settings? (0/1)> ";
 			cin >> more;
 			if (more > 0) {
+				cout << "Jump back into domain if leaving? (0/1)> ";
+				cin >> input;
+				imp.setJumpIntoDomain((bool)input);
 				cout << "Use Lagranto-style UVW? (0/1)> ";
 				cin >> input;
 				if (input == 1) {
@@ -116,6 +186,11 @@ int main(int argc, char *argv[])
 					cout << "Use level interpolation on four columns? (0/1)> ";
 					cin >> input;
 					imp.setZInterpolationFlag((bool)input);
+					if (input == 0) {
+						cout << "Use staggered HHL for unstaggered W? (0/1)> ";
+						cin >> input;
+						imp.setUseWrongW((bool)input);
+					}
 				}
 				cout << "Use which integrator?\n 0) Runge-Kutta 4\n 1) Iterative Euler\n> ";
 				cin >> input;

@@ -27,10 +27,14 @@ public:
 	void setFileTimestep(int dt) { file_dt = dt; }
 
 	// How to integrate
+	//   Jump back if particle leaves domain?
+	void setJumpIntoDomain(bool val) { jump_flag = val; }
 	//   Lagranto-style UVW or not?
 	void setUseLagrantoUVW(bool val) { use_lagranto_uvw = val; }
-	//   if LagrantoUVW, use alternative z sampling with four columns?
+	//    if LagrantoUVW, use alternative z sampling with four columns?
 	void setZInterpolationFlag(bool val) { z_interpolation_flag = val; }
+	//     if not using four columns, extract wrong W values to match LAGRANTO?
+	void setUseWrongW(bool val) { falsify_w_flag = val; }
 	//   which integrator should be used?
 	void setIntegratorToRungeKutta() { integrator = 0; }
 	void setIntegratorToIterativeEuler() { integrator = 1; }
@@ -53,8 +57,10 @@ private:
 	double end_t = 1200.0;
 	double dt = 1; int nSteps = 1200;
 
+	bool jump_flag = true;
 	bool use_lagranto_uvw = true;
 	bool z_interpolation_flag = false;
+	bool falsify_w_flag = false;
 	int integrator = 0;
 	bool time_invariant = false;
 

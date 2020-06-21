@@ -104,6 +104,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		else {
 			LagrantoUVW* field = new LagrantoUVW(files[i], hhl);
 			field->setZSamplingAlternative(z_interpolation_flag);
+			field->setCorrectZW(!falsify_w_flag);
 			UVW.InsertNextField(field, file_t[i]);
 		}
 	}
@@ -121,6 +122,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	const float rlon_max = bb.GetMax()[0];
 	const float rlat_min = bb.GetMin()[1];
 	const float rlat_max = bb.GetMax()[1];
+	RegScalarField2f* hsurf = NetCDF::ImportScalarField2f(constantsfile, "HSURF", "rlon", "rlat");
 
 	// and an extra variable to mark the final part where only 2 fields are used
 	bool finalPart = false;
@@ -165,6 +167,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 				else {
 					LagrantoUVW* field = new LagrantoUVW(files[file_i + 3], hhl);
 					field->setZSamplingAlternative(z_interpolation_flag);
+					field->setCorrectZW(!falsify_w_flag);
 					UVW.InsertNextField(field, file_t[file_i + 3]);
 				}
 			}
@@ -173,6 +176,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		// propagate all active trajectories by one timestep
 		#pragma omp parallel for
 		for (int i = 0; i < td.num_trajectories; ++i) {
+			// move position as long if it is within the domain
 			if (position[i][0]>=rlon_min && position[i][0] <= rlon_max
 				&& position[i][1] >= rlat_min && position[i][1] <= rlat_max) {
 				if (integrator==0)
@@ -180,6 +184,19 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 				else
 					position[i] = tracer.traceParticleIterativeEuler(UVW, position[i], t, dt_real, 3);
 			}
+
+			// possibly jump back into the domain
+			if (jump_flag) {
+				if (position[i][0] < rlon_min) position[i][0] += 0.1f;
+				else if (position[i][0] > rlon_max) position[i][0] -= 0.1f;
+				if (position[i][1] < rlat_min) position[i][1] += 0.1f;
+				else if (position[i][1] > rlat_max) position[i][1] -= 0.1f;
+				float h_min = hsurf->Sample(Vec2d(position[i][0], position[i][1]));
+				float h_max = hhl->Sample(Vec2d(position[i][0], position[i][1], 0));//TODO seems constant
+				if (position[i][2] < h_min) position[i][2] += 100;
+				else if (position[i][2] > h_max) position[i][2] -= 100;
+			}
+
 			const size_t data_i = step_i * td.num_trajectories + i;
 			td.data[rlon_id][data_i] = position[i][0];
 			td.data[rlat_id][data_i] = position[i][1];
@@ -226,4 +243,6 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	}
 	//--------------------- the end
 	std::cout << "Trajectories have been computed\n";
+	delete hhl;
+	delete hsurf;
 }
