@@ -1,0 +1,20 @@
+\chapter{Results}
+
+\section{Pictures and stuff}
+%TODO they don't look that nice yet
+
+
+\section{Comparison}
+Comparing results: I can reproduce LAGRANTO pretty well ... and which improvements do more or less?
+% sampling four or one pillars is not so important
+% using the correct W is more
+% how about just rungekutta?
+
+\section{Performance}
+All time measurements in the part above were taken on the same machine: It has an Intel\textsuperscript{\textregistered} Core\textsuperscript{\texttrademark} i5-3427U CPU running at $1.80$ GHz with $7.7$ GiB of memory.
+
+First experiment: $4$ trajectories, $7$ input files, $60$ iterations. Most of the work is reading the files.
+Second experiment: $459045$ trajectories, $7$ input files and $60$ iterations again. This involves more computations.
+
+LAGRANTO times are: $4$ m $12$ s for the first, $19$ m $08$ s for the second.
+My times are: $1$ m $37$ s for the first, $4$ m $35$ s for the second.
