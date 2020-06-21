@@ -3,41 +3,63 @@
 
 \chapter{Background}
 
-behold you unrepentant blasphemers
-
-\section{Data}
+\section{Data}\label{sec:data}
 We work on a set of NetCDF files containing assorted meteorological data. Most of the files contain data at a certain point in time and have names like "lfff00000000.nc". The number in the filename corresponds to the time past the reference time using the format DDHHMMSS, so for example "lfff00015000.nc" would contain the data at one hour and fifty minutes. In addition there is a file "lfff00000000c.nc" (note the c) which holds constant variables like the height of the surface.
 
-Most of the important variables are stored as three-dimensional arrays. The three dimensions are called $rlon$, $rlat$ and $level$. $rlon$ and $rlat$ are coordinates in a rotated geographical coordinate system. The $level$s correspond to the vertical position of a point, but it is not a simple linear transformation. Instead, the constants file holds the necessary information to convert $level$s to actual height. Further details in section TODO
+Most of the important variables are stored as three-dimensional arrays. The three dimensions are called $rlon$, $rlat$ and $level$. $rlon$ and $rlat$ are coordinates in a rotated geographical coordinate system. The $level$s correspond to the vertical position of a point, but it is not a simple linear transformation. Instead, the constants file holds the necessary information to convert $level$s to actual height. Further details in section \ref{sec:conversion}
 
-TODO make a table
-Interesting variables are
-%(data)			name		description	constant	staggered	unit
-%U				velocity of some sort	no			rlon		m/s	
-%V							=			no			rlat		m/s
-%W							=			no			level		m/s
-%HHL			level to height			yes			level		m
-%HSURF			surface height			yes			no, 2d		m
-%(P,T,RELHUM)	stuff					no			no			whatever
+Table \ref{tab:variables} gives an overview of the most interesting variables. The three variables $UVW$ define the velocity field: $U$ is the eastward (in the rotated system) component of the wind, $V$ the northward component, and $W$ the northward component. All three have the same units and similar grids, but those grids are all staggered in different directions. Section \ref{sec:destaggering} describes how the staggered grids are handled.
 
+$HHL$ maps the $level$ of a grid point to a physical height. Like $W$, it is staggered in the vertical direction and needs to be destaggered before it can be used with most other variables. $HHL$ is important because the particle positions have a real height in meters as their third component and there needs to be a way to find grid coordinates from the particle position.
+
+$HSURF$ contains the height of the surface for given ($rlon$, $rlat$) coordinates. It is mainly used to prevent particles from leaving the domain through the ground.
+
+The pressure $P$, temperature $T$ and relative humidity $RELHUM$ are not relevant for the tracing, but they work well as examples of the kind of data one may wish to track along the trajectories.
+
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+Name & Description & dimensions & Constant & Staggering & Unit \\ \hline
+$U$ & $rlon$ component of velocity & 3 & no & $rlon$ & m/s \\ \hline
+$V$ & $rlat$ component of velocity & 3 & no & $rlat$ & m/s \\ \hline
+$W$ & vertical component of velocity & 3 & no & $level$ & m/s \\ \hline
+$HHL$ & $level$-to-height map & 3 & yes & $level$ & m \\ \hline
+$HSURF$ & height of surface & 2 & yes & none & m \\ \hline
+$P$ & pressure & 3 & no & none & Pa \\ \hline
+$T$ & temperature & 3 & no & none & K \\ \hline
+$RELHUM$ & relative humidity & 3 & no & none & \% \\ \hline
+\end{tabular}
+\caption{Important variables}
+\label{tab:variables}
+\end{table}
 %Sample references are~\cite{Zwicker04Perspective} and~\cite{Altman89QuaternionScandal}.
 
-\section{Conversion}
-The velocities $U$, $V$, $W$, as well as other variables like temperature, are defined on a regular grid with axes corresponding to ($rlon$, $rlat$, $level$). 
+\section{Destaggering}\label{sec:destaggering}
+\begin{figure}
+% yay, embedded text
+\centering \includegraphics*[width=0.5\textwidth]{figures/0613_staggering}
+\caption{Left: Points in staggered grids; Right: Destaggering by averaging two staggered points}
+\label{fig:destaggering}
+\end{figure}
+$U$, $V$, $W$ and $HHL$ are given in staggered grids, recognizable by using $srlon$, $srlat$ and $level1$ for certain axes. The staggered grid coordinates lie halfway between the unstaggered grid points. Destaggering is done by averaging the two values and storing them at the grid position between them. Figure \ref{fig:destaggering} shows how staggered ($srlon$, $rlat$) and ($rlon$, $srlat$) grids are converted to ($rlon$, $rlat$). The image also shows that the destaggered version of the grid has one row/column less than the staggered original.
+
+\section{Conversion between coordinate systems}\label{sec:conversion}
+The velocities $U$, $V$, $W$, as well as other variables like temperature, are defined on a regular grid with axes corresponding to ($rlon$, $rlat$, $level$).
 
 %Rlon and rlat are longitude and latitude in a rotated system. Given the real longitude lambda and latitude phi of a given point, as well as the global coordinates of the rotated north pole pollam,polphi, the coordinates in the rotated system can be computed as
-$rlon$ and $rlat$ can be converted into $lon$ and $lat$ given the (global) coordinates of the rotated north pole ($\lambda_{pole}$, $\phi_{pole}$). It goes like this:
+$rlon$ and $rlat$ can be converted into $lon$ and $lat$ given the (global) coordinates of the rotated north pole ($\lambda_{pole}$, $\phi_{pole}$). Converting coordinates ($\lambda_r$, $\phi_r$) in the rotated system to the global coordinates ($\lambda_g$, $\phi_g$) is done as follows: 
 \begin{equation}
-arg = \cos \phi_{pole} \cdot \cos rlat \cdot \cos rlon + \sin \phi_{pole} \cdot \sin rlat;
+arg = \cos \phi_{pole} \cdot \cos \phi_r \cdot \cos \lambda_r + \sin \phi_{pole} \cdot \sin \phi_r;
 \end{equation}
 \begin{equation}
-		lat = \sin^{-1} arg;
+		\phi_g = \sin^{-1} arg;
 \end{equation}
 \begin{equation}
-		c_1 = \sin \phi_{pole} \cdot \cos rlon \cdot \cos rlat + \cos \phi_{pole} \cdot \sin rlat
+		c_1 = \sin \phi_{pole} \cdot \cos \lambda_r \cdot \cos \phi_r + \cos \phi_{pole} \cdot \sin \phi_r
 \end{equation}
 \begin{equation}
-		c_2 = \sin rlon \cdot \cos rlat
+		c_2 = \sin \lambda_r \cdot \cos \phi_r
 \end{equation}
 \begin{equation}
 		zarg1 = \sin \lambda_{pole} \cdot c_1 - \cos \lambda_{pole} \cdot c_2
@@ -46,9 +68,11 @@ arg = \cos \phi_{pole} \cdot \cos rlat \cdot \cos rlon + \sin \phi_{pole} \cdot 
 		zarg2 = \cos \lambda_{pole} \cdot c_1 + \cos \lambda_{pole} \cdot c_2
 \end{equation}
 \begin{equation}
-		lon = atan2(zarg1,zarg2)
+		\lambda_g = atan2(zarg1,zarg2)
 \end{equation}
-(this would probably look nicer if I wrote $\phi_r$ instead of $rlat$ )
 
-The vertical coordinates $z$ are given in meters above sea level and need to be mapped to grid levels. To that purpose, we have a time-invariant scalar field $HHL$ which maps (staggered) levels at specific grid points to their height. There's a bit of a problem figuring out how to interpolate at coordinates somewhere inbetween: Do we construct an interpolated height level pillar thing, do we interpolate on four adjacent pillars or what you call them, or do something else
+The vertical coordinates $z$ are given in meters above sea level and need to be mapped to grid levels. To that purpose, we have the time-invariant scalar field $HHL$ which maps (staggered) levels at specific grid points to their height.
+The fact that the values are stored in a regular grid that corresponds to an irregular real shape means that one needs to be careful when interpolating values given at coordinates between grid points. Two possible methods are discussed in the following chapter.
+
+
 

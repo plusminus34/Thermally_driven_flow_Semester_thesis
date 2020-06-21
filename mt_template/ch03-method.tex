@@ -1,0 +1,102 @@
+\chapter{Method}
+
+\section{Numeric integration}\label{sec:integrator}
+%New version:
+Solving differential equations of all types is a topic for itself, so here we have just the methods used to find the next point of a trajectory given the velocity field $UVW(p,t)$, the starting position $p_{t_0}$ and a timestep of size $\delta_t$.
+
+%LAGRANTO uses some kind of iterative Euler method which seems unnecessarily complicated and it's error is O(dt^3). Rungekutta uses the same number of samples and does it with O(dt^5) locally, dt^4 accumulated ... should be better ... but maybe differentiability matters as well
+LAGRANTO uses an iterative variant of Euler's method. The next point $p_{t_0}+\delta_t$ is computed using the average of the velocities at the original point $p_{t_0}$ and the current guess for $p_{t_0}+\delta_t$. This method is related to the explicit trapezoidal rule: In the time-invariant case, stopping at $q_2$ is equivalent to using the explicit trapezoidal rule.
+
+We preferred to use the classical Runge-Kutta integration scheme. It uses four samples of $UVW$ per iteration like the iterative Euler method, but the error should be smaller for the same timestep.
+
+%Old version:
+%LAGRANTO uses an iterative Euler scheme to compute $p_{t_0+\delta_t}$ from $p_{t_0}$ and $UVW(p, t)$:
+
+Iterative Euler
+\begin{equation}
+	v_0 = UVW(p_{t_0}, t_0)
+\end{equation}
+\begin{equation}
+	v_1 = UVW(p_{t_0}, t_0 + \delta_t)
+\end{equation}
+\begin{equation}
+	q_1 = p_{t_0} + \delta_t \frac{ v_0  + v1}{2}
+\end{equation}
+\begin{equation}
+	v_2 = UVW(q_1, t_0 + \delta_t)
+\end{equation}
+\begin{equation}
+	q_2 = p_{t_0} + \delta_t \frac{ v_0  + v2}{2}
+\end{equation}
+\begin{equation}
+	v_3 = UVW(q_2, t_0 + \delta_t)
+\end{equation}
+\begin{equation}
+	p_{t_0 + \delta_t} = p_{t_0} + \delta_t \frac{ v_0  + v3}{2}
+\end{equation}
+
+Classical Runge-Kutta
+\begin{equation}
+	k_1 = UVW(p_{t_0}, t_0)
+\end{equation}
+\begin{equation}
+	k_2 = UVW(p_{t_0} + k_1 \frac{\delta_t}{2}, t_0 + \frac{\delta_t}{2})
+\end{equation}
+\begin{equation}
+	k_3 = UVW(p_{t_0} + k_2 \frac{\delta_t}{2}, t_0 + \frac{\delta_t}{2})
+\end{equation}
+\begin{equation}
+	k_4 = UVW(p_{t_0} + k_3 \delta_t, t_0 + \delta_t)
+\end{equation}
+\begin{equation}
+	p_{t_0 + \delta_t} = p_{t_0} + (k_1 + 2 k_2 + 2 k_3 + k_4) \frac{\delta_t}{6}
+\end{equation}
+
+\section{Sampling}
+Sampling the velocity field $UVW$ at a certain position ($x$,$y$,$z$) and time $t$ is a common operation during particle tracing. Because $UVW$ is defined in m/s on a ($rlon$, $rlat$, $level$) grid and the position is given in ($\deg rlon$, $\deg rlat$, m) some conversions are necessary.
+\begin{figure}
+\centering \includegraphics*[width=0.8\textwidth]{figures/0621_zinterpolation}
+\caption{Top: How LAGRANTO interpolates between levels; Bottom: How we do it TODO change it}
+\label{fig:sample_z}
+\end{figure}
+
+\subsection{How LAGRANTO does it}
+Mapping $x$ and $y$ to positions in the $rlon$-$rlat$-grid is simple enough. They are already in the right units and so the closest grid points can be found TODO(formula? picture?)
+%At this point, it is possible to obtain values at ($x$,$y$) via bilinear interpolation between the four corners. The vertical axis is more problematic. What LAGRANTO does is constructing a local $level$-to-height field at ($x$,$y$) by bilinearly interpolating $HHL$. This is followed by a binary search to obtain grid coordinates for $z$. Finally, the value of the sampled variable is obtained by combining the interpolated values from the upper and lower levels. In essence LAGRANTO performs trilinear interpolation in a box
+The upper part of Figure \ref{fig:sample_z} shows how LAGRANTO interpolates between levels: First two level heights for the upper and lower level are constructed (shown as red horizontal lines). This requires a binary search to locate two levels for the $z$-coordinate of the sampling point. LAGRANTO essentially performs trilinear interpolation in a box-shaped cell whose exact position and height depends depends on ($x$,$y$). Notice how in the third step the corner points have been moved slightly up or down: The differing real heights of the grid points only matter when determining the local level heights. For the final interpolation, all four corner points on one level are considered to be at the same height. 
+%$\frac{x-rlon_0}{\delta_{rlon}}$
+
+%Sampling at $rlon$ $rlat$ $z$: The xy-coordinates of the 8 relevant grid points are easily computed from $rlon$ and $rlat$ (($rlon$-$rlon_min$)/$drlon$ etc). Each of the three axes has two associated weights. A local level-to-height map is built using a weighted sum of the nearby level heights. A binary search on this local level-to-height map gives the weights for the z-axis. The final value is then computed using simple trilinear interpolation.
+
+
+\subsection{How I do it (TODO change subtitle)}
+%Same xy-weights, but replace the 2 fixed z-weights by separate ones for each corner. It is different.
+Finding the grid coordinates of ($x$,$y$) and the bilinear interpolation weights along the $rlon$ and $rlat$ axes is the same as in the previous subsection.% Instead of interpolating values between two local height levels we instead choose to sample a value at each of the four pillars and bilinearly interpolate those.
+%Unlike LAGRANTO we do not construct a local height map and then interpolate between values on the upper and lower level. Instead we compute four values at the pillars nearby and combine those into the final sample value by bilinear interpolation. This method should be less vulnerable to problems that arise from having grid points on the same level but different actual heights.
+The lower part of figure \ref{fig:sample_z} shows how we compute the interpolated value at the orange sample point. On each of the four (two in the picture) columns, we compute interpolation weights after a binary search on the equivalent column in $HHL$. The last step is bilinearly interpolating between those four values.%TODO something about being more complicated?
+
+\section{What happens when running}
+The tracing process starts by asking the user for initial points, start and end time, size of the timestep, and some optional parameters. After allocating space for the output data, the $UVW$ fields are extracted from the first three appropriate files. As the simulation runs, the oldest field is regularly replaced by new $UVW$ from the next file in line, minimizing the memory needed at runtime.
+At each step, all trajectories have to be advanced by $\delta_t$. Those that have left the domain are kept at their last positions while the others get positions for the next timestep based on the velocity at their current position.
+\subsection{Tracing output}
+%describing the format of the output files? basically: like LAGRANTO does it, we want compatibility after all
+The results from the particle tracing are written into a NetCDF file which stores: Time, position, extra variables. At each vertex.
+Each variable is stored in a separate array, time is the "big step", trajectory the "small step".
+That is how LAGRANTO does it.
+
+\section{Analysis}
+%How do we evaluate our results?
+
+Qualitative:
+%Visualize trajectories, check if my results and those from LAGRANTO look similar. scale down z, rlon or lon
+We visualize the trajectories using VTK (TODO reference). The trajectories are loaded from an output file and drawn in 3D. The user can move the camera to get a better view. A surface obtained from $HHL$ is also displayed to give a context beyond just the trajectory shape.
+
+$rlon$ and $rlat$ or $lon$ and $lat$ (depending on the settings) correspond to the $x$ and $y$ axes of the renderer. For comparing the results to those from LAGRANTO, the global coordinates ($lon$,$lat$) are used because LAGRANTO includes only those in its output. The coordinates on the vertical axis $z$ are rescaled by a factor of TODO to bring them more in line with the rest. Overall, the shapes in the picture are not entirely accurate, but they give a good idea of how things look like.
+
+Quantitative:
+% Assuming two trajectories ($p_0$, $p_1$, $p_2$, ..., $p_N$) and ($q_0$, $q_1$, $q_2$, ..., $q_N$), we measure the distance between them as $\sum{|p_i - q_i|}$?
+% Try again:
+Given two trajectories, we want to measure how different they are by integrating the distance between their current positions over the tracing duration. Assuming two point sets ($p_0$, $p_1$, $p_2$, ..., $p_N$) and ($q_0$, $q_1$, $q_2$, ..., $q_N$), the distances will be ($|p_0-q_0|$,$|p_1-q_1|$,$|p_2-q_2|$, ...,$|p_N-q_N|$). For approximating the integrated distance, we need times $t_i$ associated with each point in addition to the spatial coordinates. The final trajectory distance is computed as $\Sigma^N_{i=0} w_i \cdot |p_i-q_i|$, where $w_i$ is usually equal to the timestep $\delta_t$ (assuming a constant timestep). For the initial points $p_0$,$q_0$ as well as the final points $p_N$,$q_N$ it is $\frac{\delta_t}{2}$ instead. More generally, $w_i$ is equal to $\frac{t_{i+1}-t_{i-1}}{2}$ (assume $t_{-1} = t_0$ and $t_{N+1} = t_N$).
+
+
+
