@@ -33,16 +33,97 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	else if (input == 3) {
-		string file_a = "trajectory_test_longtime.nc";
-		string file_b = "trajectory_test_longtime2.nc";
+		// Begin with trajectories to compare to
+		vector<string> files(1);
+		files[0] = "trajectory_test_longtime.nc";
 
-		TrajectoryData td_a, td_b;
-		NetCDF::ReadTrajectoryData(file_a, td_a);
-		NetCDF::ReadTrajectoryData(file_b, td_b);
+		// Add other trajectories
+		files.push_back("trajectory_test_longtime2.nc");
 
-		size_t n_tra = td_a.num_trajectories;
-		size_t n_tim = td_b.points_per_trajectory;
+		TrajectoryData td_0;
+		NetCDF::ReadTrajectoryData(files[0], td_0);
 
+		size_t n_tra = td_0.num_trajectories;
+		size_t n_tim = td_0.points_per_trajectory;
+
+		int lon_id = td_0.get_var_id("lon");
+		int lat_id = td_0.get_var_id("lat");
+		int rlon_id = td_0.get_var_id("rlon");
+		int rlat_id = td_0.get_var_id("rlat");
+		int z_id = td_0.get_var_id("z");
+
+		ofstream output_file;
+		output_file.open("trajectory_difference.txt");
+		output_file << "Comparison between trajectories in "<< files[0] << " and other files" << endl;
+
+		output_file << "Times" << endl << td_0.times[0];
+		for (int i = 1; i < n_tim; ++i) {
+			output_file << ", " << td_0.times[i];
+		}
+		output_file << endl;
+
+		for (int i = 1; i < files.size(); ++i) {
+			cout << "Reading file " << files[i] << endl;
+			output_file << "Compare to " << files[i] << endl;
+			TrajectoryData td;
+			NetCDF::ReadTrajectoryData(files[i], td);
+
+			if (n_tra != td.num_trajectories) {
+				cout << "Error: Different number of trajectories\n";
+				return 1;
+			}
+			if (n_tim != td.points_per_trajectory) {
+				cout << "Error: Different number of timesteps\n";
+				return 1;
+			}
+			//TODO check that variables have the same ids
+
+			// Compute average distances per timestep
+			vector<float> diff_horizontal(n_tim);
+			vector<float> diff_vertical(n_tim);
+
+			for (int j = 0; j < n_tim; ++j) {
+				diff_horizontal[j] = 0;
+				diff_vertical[j] = 0;
+				for (int k = 0; k < n_tra; ++k) {
+					float dx = td_0.val(lon_id, i, j) - td.val(lon_id, i, j);
+					float dy = td_0.val(lat_id, i, j) - td.val(lat_id, i, j);
+					float dz = td_0.val(z_id, i, j) - td.val(z_id, i, j);
+					diff_horizontal[j] += sqrt(dx*dx + dy * dy);
+					diff_vertical[j] += abs(dz);
+				}
+				diff_horizontal[j] /= n_tra;
+				diff_vertical[j] /= n_tra;
+			}
+
+			//float integral = 0;
+
+			output_file << "Average horizontal distance:" << endl;
+			output_file << diff_horizontal[0];
+			for (int j = 1; j < n_tim; ++j) {
+				//integral += (td_0.times[j] - td_0.times[j - 1]) * (diff_horizontal[j - 1] + diff_horizontal[j]) * 0.5f;
+				//output_file << ", " << integral;
+				output_file << ", " << diff_horizontal[i];
+			}
+			output_file << endl;
+
+			//integral = 0;
+			output_file << "Average vertical distance:" << endl;
+			output_file << diff_vertical[0];
+			for (int j = 1; j < n_tim; ++j) {
+				//integral += (td_0.times[j] - td_0.times[j - 1]) * (diff_vertical[j - 1] + diff_vertical[j]) * 0.5f;
+				//output_file << ", " << integral;
+				output_file << ", " << diff_vertical[i];
+
+			}
+			output_file << endl;
+
+			output_file.close();
+
+
+		}
+
+		/*
 		if (n_tra != td_b.num_trajectories) {
 			cout << "Error: Different number of trajectories\n";
 			return 1;
@@ -51,16 +132,6 @@ int main(int argc, char *argv[])
 			cout << "Error: Different number of timesteps\n";
 			return 1;
 		}
-
-		cout << "timessize " << td_a.times.size()<<endl;
-
-		int lon_id = td_a.get_var_id("lon");
-		int lat_id = td_a.get_var_id("lat");
-		int rlon_id = td_a.get_var_id("rlon");
-		int rlat_id = td_a.get_var_id("rlat");
-		int z_id = td_a.get_var_id("z");
-		//TODO check that a and b have the same ids
-
 		for (int i = 0; i < n_tra; ++i) {
 			cout << "Comparing trajectory " << i << endl;
 			double sum_horiz = 0;
@@ -93,6 +164,7 @@ int main(int argc, char *argv[])
 			cout << "  Integrated horizontal distance differences: " << int_horiz << endl;
 			cout << "  Integrated vertical distance differences: " << int_vert << endl;
 		}
+		*/
 
 		return 0;
 	}

@@ -216,7 +216,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		TimeRelatedFields<float, 3 > fields(2);
 		for (int j = 0; j < 2; ++j) {
 			RegScalarField3f* field = NetCDF::ImportScalarField3f(files[j], td.varnames[other_vars[var_i]], "rlon", "rlat", "level");
-			fields.InsertNextField(field, file_t[var_i]);
+			fields.InsertNextField(field, file_t[j]);
 		}
 		if (backward) fields.setBackward(true);
 		int file_i = 0;
