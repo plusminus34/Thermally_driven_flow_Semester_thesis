@@ -30,15 +30,55 @@ int main(int argc, char *argv[])
 	std::cout << "4:\tDebug output\n> ";
 	cin >> input;
 	if (input == 4) {
+		vector<string> files;
+		files.push_back("../../../outputs/trajectory_luzern_wohin_622.nc");
+		files.push_back("../../../outputs/trajectory_luzern_woher_622.nc");
+		files.push_back("../../../outputs/trajectory_chur_wohin_622.nc");
+		files.push_back("../../../outputs/trajectory_chur_woher_622.nc");
+		files.push_back("../../../outputs/trajectory_matterhorn_wohin_622.nc");
+		files.push_back("../../../outputs/trajectory_matterhorn_woher_622.nc");
+		float Tmin = 277, Tmax = 0;
+		float Pmin = 9999999999999, Pmax = 0;
+		float humin = 100, humax = 0;
+		for (int i = 0; i < files.size(); ++i) {
+			TrajectoryData td;
+			NetCDF::ReadTrajectoryData(files[i], td);
+			int T_id = td.get_var_id("T");
+			int P_id = td.get_var_id("P");
+			int hum_id = td.get_var_id("RELHUM");
+			Tmin = min(Tmin, td.min_values[T_id]);
+			Tmax = max(Tmax, td.max_values[T_id]);
+			Pmin = min(Pmin, td.min_values[P_id]);
+			Pmax = max(Pmax, td.max_values[P_id]);
+			humin = min(humin, td.min_values[hum_id]);
+			humax = max(humax, td.max_values[hum_id]);
+			cout << "Tmin of " << files[i] << ":\t" << td.min_values[T_id] << endl;
+			cout << "Tmax of " << files[i] << ":\t" << td.max_values[T_id] << endl;
+			cout << "Pmin of " << files[i] << ":\t" << td.min_values[P_id] << endl;
+			cout << "Pmax of " << files[i] << ":\t" << td.max_values[P_id] << endl;
+			cout << "Hmin of " << files[i] << ":\t" << td.min_values[hum_id] << endl;
+			cout << "Hmax of " << files[i] << ":\t" << td.max_values[hum_id] << endl;
+		}
+		cout << "Tmin total:\t" << Tmin << endl;
+		cout << "Tmax total:\t" << Tmax << endl;
+		cout << "Pmin total:\t" << Pmin << endl;
+		cout << "Pmax total:\t" << Pmax << endl;
+		cout << "Hmin total:\t" << humin << endl;
+		cout << "Hmax total:\t" << humax << endl;
+
 		return 0;
 	}
 	else if (input == 3) {
 		// Begin with trajectories to compare to
 		vector<string> files(1);
-		files[0] = "trajectory_test_longtime.nc";
+		files[0] = "../../../outputs/trajectory_numbers_lagranto.4";
 
 		// Add other trajectories
-		files.push_back("trajectory_test_longtime2.nc");
+		files.push_back("../../../outputs/trajectory_numbers_lagrantolike.nc");
+		files.push_back("../../../outputs/trajectory_numbers_betterW.nc");
+		files.push_back("../../../outputs/trajectory_numbers_4pillars.nc");
+		files.push_back("../../../outputs/trajectory_numbers_rungekutta.nc");
+		files.push_back("../../../outputs/trajectory_numbers_meins.nc");
 
 		TrajectoryData td_0;
 		NetCDF::ReadTrajectoryData(files[0], td_0);
@@ -76,7 +116,10 @@ int main(int argc, char *argv[])
 				cout << "Error: Different number of timesteps\n";
 				return 1;
 			}
-			//TODO check that variables have the same ids
+
+			int lon_id_i = td.get_var_id("lon");
+			int lat_id_i = td.get_var_id("lat");
+			int z_id_i = td.get_var_id("z");
 
 			// Compute average distances per timestep
 			vector<float> diff_horizontal(n_tim);
@@ -86,9 +129,9 @@ int main(int argc, char *argv[])
 				diff_horizontal[j] = 0;
 				diff_vertical[j] = 0;
 				for (int k = 0; k < n_tra; ++k) {
-					float dx = td_0.val(lon_id, i, j) - td.val(lon_id, i, j);
-					float dy = td_0.val(lat_id, i, j) - td.val(lat_id, i, j);
-					float dz = td_0.val(z_id, i, j) - td.val(z_id, i, j);
+					float dx = td_0.val(lon_id, i, j) - td.val(lon_id_i, i, j);
+					float dy = td_0.val(lat_id, i, j) - td.val(lat_id_i, i, j);
+					float dz = td_0.val(z_id, i, j) - td.val(z_id_i, i, j);
 					diff_horizontal[j] += sqrt(dx*dx + dy * dy);
 					diff_vertical[j] += abs(dz);
 				}
@@ -103,7 +146,7 @@ int main(int argc, char *argv[])
 			for (int j = 1; j < n_tim; ++j) {
 				//integral += (td_0.times[j] - td_0.times[j - 1]) * (diff_horizontal[j - 1] + diff_horizontal[j]) * 0.5f;
 				//output_file << ", " << integral;
-				output_file << ", " << diff_horizontal[i];
+				output_file << ", " << diff_horizontal[j];
 			}
 			output_file << endl;
 
@@ -113,58 +156,14 @@ int main(int argc, char *argv[])
 			for (int j = 1; j < n_tim; ++j) {
 				//integral += (td_0.times[j] - td_0.times[j - 1]) * (diff_vertical[j - 1] + diff_vertical[j]) * 0.5f;
 				//output_file << ", " << integral;
-				output_file << ", " << diff_vertical[i];
+				output_file << ", " << diff_vertical[j];
 
 			}
 			output_file << endl;
 
-			output_file.close();
-
-
 		}
 
-		/*
-		if (n_tra != td_b.num_trajectories) {
-			cout << "Error: Different number of trajectories\n";
-			return 1;
-		}
-		if (n_tim != td_b.points_per_trajectory) {
-			cout << "Error: Different number of timesteps\n";
-			return 1;
-		}
-		for (int i = 0; i < n_tra; ++i) {
-			cout << "Comparing trajectory " << i << endl;
-			double sum_horiz = 0;
-			double sum_vert = 0;
-			double int_horiz = 0;
-			double int_vert = 0;
-
-			for (int j = 0; j < n_tim; ++j) {
-				float dx = td_a.val(rlon_id, i, j) - td_b.val(rlon_id, i, j);
-				float dy = td_a.val(rlat_id, i, j) - td_b.val(rlat_id, i, j);
-				float dz = td_a.val(z_id, i, j) - td_b.val(z_id, i, j);
-				sum_horiz += sqrt(dx*dx + dy * dy);
-				sum_vert += abs(dz);
-				if (j > 0) {
-					double dt = td_a.times[j] - td_a.times[j-1];
-					int_horiz += sum_horiz*dt;
-					int_vert += sum_vert*dt;
-				}
-				if (j < n_tim - 1) {
-					double dt = td_a.times[j + 1] - td_a.times[j];
-					int_horiz += sum_horiz * dt;
-					int_vert += sum_vert * dt;
-				}
-			}
-			int_horiz *= 0.5;
-			int_vert *= 0.5;
-
-			cout << "  Sum of horizontal distance differences: " << sum_horiz << endl;
-			cout << "  Sum of vertical distance differences: " << sum_vert << endl;
-			cout << "  Integrated horizontal distance differences: " << int_horiz << endl;
-			cout << "  Integrated vertical distance differences: " << int_vert << endl;
-		}
-		*/
+		output_file.close();
 
 		return 0;
 	}
