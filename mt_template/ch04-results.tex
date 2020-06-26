@@ -2,19 +2,75 @@
 
 \section{Pictures and stuff}
 %TODO they don't look that nice yet
+\begin{figure}
+\centering \includegraphics*[width=0.9\textwidth]{figures/variables_2by2}
+\caption{Top left: Color by trajectory set; Top right: Color by temperature; Bottom left: Color by Pressure; Bottom right: Color by humidity}
+\label{fig:results1}
+\end{figure}
+\begin{figure}
+\centering
+\begin{tikzpicture}
+\node[anchor = center, inner sep=0] at (0,0) {\includegraphics*[width=0.4\textwidth]{figures/variables_2by2}};
+\draw[yellow,thick] (-1,-1) -- (1,1);
+\draw[red,thick] (0,0) -- (1,0);
+\draw[green,thick] (0,0) -- (0,1);
+\draw[pink, ultra thick, rounded corners] (-1,-2) rectangle (3,4);
+\end{tikzpicture}
+\caption{drawing stuff with tikz}
+\end{figure}
 
+%TODO better images
 
 \section{Comparison}
+
+\begin{figure}
+\centering \includegraphics*[width=0.9\textwidth]{figures/plot_dt1}
+\label{fig:plot_dt1}
+\centering \includegraphics*[width=0.9\textwidth]{figures/plot_dt2}
+\label{fig:plot_dt2}
+\centering \includegraphics*[width=0.9\textwidth]{figures/plot_dt5}
+\caption{Average distance between LAGRANTO trajectories and ours, timestep is $h = 1 min$ on top, $h = 2 min$ in the middle, $h = 5 min$ on the bottom}
+\label{fig:plot_dt5}
+\end{figure}
+
+The plots in figure \ref{fig:plot_dt5} plot the difference between trajectories computed by LAGRANTO and five variants of our tracing algorithm. All values are averaged over around $7000$ trajectories. The five variants are:
+\begin{itemize}
+\item Copying LAGRANTO: Settings to perform almost the same operations as LAGRANTO
+\item Sample W correctly: Examining the LAGRANTO code showed that the vertical velocity $W$ was being sampled on a staggered grid even after it had been destaggered. This is an error.
+\item Level interpolation on 4 columns: Use the procedure described in section \ref{sec:zsampling_mine}
+\item Runge-Kutta instead of Iterative Euler: Use a different ODE solver
+\item All improvements: Combines the three variants above
+\end{itemize}
+TODO visualize trajectories as well
+
+All trajectories start and end within the boundaries of the domain. Frequent collisions with the ground would distort the results significantly and have been avoided by the choice of starting positions and by not tracing particles for too long.
+
+What can be seen is that the black line is stays at a very low value. There are small variations, but we can reproduce the LAGRANTO results almost exactly.
+
+The right side which measures the average vertical distance looks very chaotic and is not very useful for gathering information. The reason for that is unclear, possibly related to how trajectories make wave shapes over mountains.
+
+The choice of integrator does not matter that much for small timesteps, but in the case of $h=5min$ the Runge-Kutta curve dominates the left plot. When viewing the actual trajectories, they look smoother for Runge-Kutta in that case.%TODO I think
+
+It appears that how to sample across $level$s makes more of a difference than correcting the sampling of $W$. The fact that both of those affect the $z$ axis may be another factor in the irregular curves on the right side.
+
+\section{old stuff starts here}
 Comparing results: I can reproduce LAGRANTO pretty well ... and which improvements do more or less?
 % sampling four or one pillars is not so important
 % using the correct W is more
 % how about just rungekutta?
+Figure \ref{fig:results2} shows the average distance between a bunch of points in my version and lagranto. left is horizontal, right is vertical. i really cant tell much from that example. i mean, an almost constant, almost zero difference is possible, but how much the various improvements change the result is hard to say... Sampling on four pillars seems more significant than using the Runge-Kutta integrator or correcting $W$, but maybe that is because of the timestep
+
+also, its possible to diverge from lagranto even with the "right" settings, but whatever
+
 
 \section{Performance}
 All time measurements in the part above were taken on the same machine: It has an Intel\textsuperscript{\textregistered} Core\textsuperscript{\texttrademark} i5-3427U CPU running at $1.80$ GHz with $7.7$ GiB of memory.
 
-First experiment: $4$ trajectories, $7$ input files, $60$ iterations. Most of the work is reading the files.
-Second experiment: $459045$ trajectories, $7$ input files and $60$ iterations again. This involves more computations.
+In a first test, there were only four trajectories, meaning most of the work is reading $UVW$. For $1$ hour of simulation data, this means $7$ data files need to be used. Reading $UVW$ represents the main workload in this case. The measured times are $4m 12s$ when using LAGRANTO $1m 37s$ in our case.
 
-LAGRANTO times are: $4$ m $12$ s for the first, $19$ m $08$ s for the second.
-My times are: $1$ m $37$ s for the first, $4$ m $35$ s for the second.
+The second test uses the same data and similarly computes trajectories over $1$ hour using a timestep of $1$ minute and reading a new $UVW$ every $10$ minutes. By tracing over $400000$ particles, the time shifts toward the tracing process. The times obtained were $19m 8s$ for LAGRANTO and $4m 35s$ using our code.
+
+This seems to imply that our C++ implementation is significantly faster than LAGRANTO. yaay %TODO more
+
+%First experiment: $4$ trajectories, $7$ input files, $60$ iterations. Most of the work is reading the files.
+%Second experiment: $459045$ trajectories, $7$ input files and $60$ iterations again. This involves more computations.
