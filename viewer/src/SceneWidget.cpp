@@ -261,17 +261,17 @@ void SceneWidget::CreateTestScene()
 		int T_id = td[file_i].get_var_id("T");
 		assert(T_id > -1);
 		if (td[file_i].min_values[T_id] < T_min) T_min = td[file_i].min_values[T_id];
-		else if (td[file_i].max_values[T_id] < T_max) T_max = td[file_i].max_values[T_id];
+		else if (td[file_i].max_values[T_id] > T_max) T_max = td[file_i].max_values[T_id];
 
 		int P_id = td[file_i].get_var_id("P");
 		assert(p_id > -1);
 		if (td[file_i].min_values[P_id] < P_min) P_min = td[file_i].min_values[P_id];
-		else if (td[file_i].max_values[P_id] < P_max) P_max = td[file_i].max_values[P_id];
+		else if (td[file_i].max_values[P_id] > P_max) P_max = td[file_i].max_values[P_id];
 
 		int hum_id = td[file_i].get_var_id("RELHUM");
 		assert(hum_id > -1);
 		if (td[file_i].min_values[hum_id] < RELHUM_min) RELHUM_min = td[file_i].min_values[hum_id];
-		else if (td[file_i].max_values[hum_id] < RELHUM_max) RELHUM_max = td[file_i].max_values[hum_id];
+		else if (td[file_i].max_values[hum_id] > RELHUM_max) RELHUM_max = td[file_i].max_values[hum_id];
 	}
 
 	// Create trajectory actor
