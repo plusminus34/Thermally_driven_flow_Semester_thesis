@@ -70,15 +70,17 @@ int main(int argc, char *argv[])
 	}
 	else if (input == 3) {
 		// Begin with trajectories to compare to
+		string basefile = "../../../outputs/trajectory_numbers3_";
+		string suffix = "3h_dt5";
 		vector<string> files(1);
-		files[0] = "../../../outputs/trajectory_numbers_lagranto.4";
+		files[0] = basefile + "lagranto_" + suffix + ".4";
 
 		// Add other trajectories
-		files.push_back("../../../outputs/trajectory_numbers_lagrantolike.nc");
-		files.push_back("../../../outputs/trajectory_numbers_betterW.nc");
-		files.push_back("../../../outputs/trajectory_numbers_4pillars.nc");
-		files.push_back("../../../outputs/trajectory_numbers_rungekutta.nc");
-		files.push_back("../../../outputs/trajectory_numbers_meins.nc");
+		files.push_back(basefile + "lagrantolike_" + suffix + ".nc");
+		files.push_back(basefile + "betterW_" + suffix + ".nc");
+		files.push_back(basefile + "4pillars_" + suffix + ".nc");
+		files.push_back(basefile + "rungekutta_" + suffix + ".nc");
+		files.push_back(basefile + "meins_" + suffix + ".nc");
 
 		TrajectoryData td_0;
 		NetCDF::ReadTrajectoryData(files[0], td_0);
@@ -93,7 +95,7 @@ int main(int argc, char *argv[])
 		int z_id = td_0.get_var_id("z");
 
 		ofstream output_file;
-		output_file.open("trajectory_difference.txt");
+		output_file.open("trajectory_difference_" + suffix + ".txt");
 		output_file << "Comparison between trajectories in "<< files[0] << " and other files" << endl;
 
 		output_file << "Times" << endl << td_0.times[0];
