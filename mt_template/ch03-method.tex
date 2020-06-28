@@ -2,19 +2,25 @@
 
 \section{Numeric integration}\label{sec:integrator}
 %TODO cite "Numerical Recipes in C"
-%TODO replace step size by h
 %New version:
-Solving differential equations of all types is a topic for itself, so here we have just the methods used to find the next point of a trajectory given the velocity field $UVW(p,t)$, the starting position $p_{t_0}$ and a timestep of size $h$.
+Solving differential equations of all types is a topic for itself. In this section we limit ourselves to describing the methods we use to find the next point of a trajectory given the time-dependent velocity field $UVW(p,t)$, the starting position $p_{t_0}$ and a timestep of size $h$.
 
 %LAGRANTO uses some kind of iterative Euler method which seems unnecessarily complicated and it's error is O(dt^3). Rungekutta uses the same number of samples and does it with O(dt^5) locally, dt^4 accumulated ... should be better ... but maybe differentiability matters as well
 % RK is order 4, which means h^5
 %TODO reference to iterative Euler variant (https://encyclopediaofmath.org/wiki/Euler_method eq6)
 LAGRANTO uses an iterative variant of Euler's method. The next point $p_{t_0}+h$ is computed using the average of the velocities at the original point $p_{t_0}$ and the current guess for $p_{t_0}+h$. This method is related to the explicit trapezoidal rule: In the time-invariant case, stopping at $q_2$ is equivalent to using the explicit trapezoidal rule.
 
-We preferred to use the classical Runge-Kutta integration scheme. It uses four samples of $UVW$ per iteration like the iterative Euler method, but according to {TODO cite that page} the iterative Euler method has an error $O(h^3)$ per step (order $2$) whereas the Runge-Kutta method has the lower error $O(h^5)$ (order $4$).
-
 %Old version:
 %LAGRANTO uses an iterative Euler scheme to compute $p_{t_0+h}$ from $p_{t_0}$ and $UVW(p, t)$:
+
+% butcher tableau of IE			RK
+% 0 |							 0  | 
+% 1 |  0						1/2 | 1/2
+% 1 | 1/2 1/2					1/2 |  0  1/2
+% 1 | 1/2  0  1/2				 1  |  0   0   1
+%----------------------          -------------------
+%     1/2  0   0   1/2                1/6 1/3 1/3 1/6
+% 
 
 Iterative Euler
 \begin{equation}
@@ -39,6 +45,8 @@ Iterative Euler
 	p_{t_0 + h} = p_{t_0} + h \frac{ v_0  + v3}{2}
 \end{equation}
 
+We preferred to use the classical Runge-Kutta integration scheme. It uses four samples of $UVW$ per iteration like the iterative Euler method, but according to {TODO cite that page} the iterative Euler method has an error $O(h^3)$ per step whereas the Runge-Kutta method has the lower error $O(h^5)$ (see for example \cite{src:numerical_recipes}).
+
 Classical Runge-Kutta
 \begin{equation}
 	k_1 = UVW(p_{t_0}, t_0)
@@ -60,7 +68,7 @@ Classical Runge-Kutta
 \definecolor{darkgreen}{rgb}{0.0, 0.5, 0.0}
 \definecolor{darkturquoise}{RGB}{0, 127, 100}
 \definecolor{darkpurple}{RGB}{64, 0, 127}
-\section{Sampling}
+\section{Sampling}\label{sec:z_sampling}
 Sampling the velocity field $UVW$ at a certain position ($x$,$y$,$z$) and time $t$ is a common operation during particle tracing. Because $UVW$ is defined in m/s on a ($rlon$, $rlat$, $level$) grid and the position is given in ($^{\circ}$, $^{\circ}$, m) some conversions are necessary.
 \begin{figure}
 \centering
@@ -97,19 +105,19 @@ Sampling the velocity field $UVW$ at a certain position ($x$,$y$,$z$) and time $
 Mapping $x$ and $y$ to positions in the ($rlon$,$rlat$) grid is done using the fact that the grid is rectangular and regular: Assuming ($\lambda_0$, $\phi_0$) are the ($rlon$,$rlat$) coordinates of the grid point ($0$,$0$) and the distance to the next vertex is $\Delta_\lambda$ (in $rlon$ direction) or $\Delta_\phi$ (in $rlat$ direction), the grid coordinates are obtained from the real coordinates ($x$,$y$) as ($\frac{x - \lambda_0}{\Delta_\lambda}$, $\frac{y - \phi_0}{\Delta_\phi}$). By rounding those grid coordinates up or down we get the coordinates of the nearest grid points.
 %At this point, it is possible to obtain values at ($x$,$y$) via bilinear interpolation between the four corners. The vertical axis is more problematic. What LAGRANTO does is constructing a local $level$-to-height field at ($x$,$y$) by bilinearly interpolating $HHL$. This is followed by a binary search to obtain grid coordinates for $z$. Finally, the value of the sampled variable is obtained by combining the interpolated values from the upper and lower levels. In essence LAGRANTO performs trilinear interpolation in a box
 
-The upper part of Figure \ref{fig:sample_z} shows how LAGRANTO interpolates between levels: First two level heights for the upper and lower level are constructed (shown as split pink and dark red lines). This requires a binary search to locate two levels for the $z$-coordinate of the sampling point. LAGRANTO essentially performs trilinear interpolation in a box-shaped cell whose exact position and height depends depends on ($x$,$y$). Notice how in the third step the corner points have been moved slightly up or down: The differing real heights of the grid points only matter when determining the local level heights. For the final interpolation, all four corner points on one level are considered to be at the same height.
+The upper part of Figure \ref{fig:sample_z} shows how LAGRANTO interpolates between levels: In a first step, two level heights for the upper and lower level are constructed (shown as split pink and dark red lines). This requires a binary search to locate two levels for the $z$-coordinate of the sampling point. LAGRANTO essentially performs trilinear interpolation in a box-shaped cell whose exact position and height depends depends on ($x$,$y$). Notice how in the third step the corner points have been moved slightly up or down: The differing real heights of the grid points only matter when determining the local level heights. For the final interpolation, all four corner points on one level are considered to be at the same height.
 %$\frac{x-rlon_0}{\delta_{rlon}}$
 
-There are three interpolation weights ($\alpha$, $\beta$, $\gamma$) for the axes ($rlon$,$rlat$,$level$). All of them are computed as ($\frac{x-x_0}{x_1-x_0}$,$\frac{y-y_0}{y_1-y_0}$,$\frac{z-z_0}{z_1-z_0}$), where $x_0$ and $y_0$ are the coordinates of the western and southern grid points and $z_0$ the (interpolated) height of the lower level. ($x_1$,$y_1$,$z_1$) is the position of the upper northeastern corner.
+There are three interpolation weights ($\alpha$, $\beta$, $\gamma$) for the axes ($rlon$,$rlat$,$level$). They are computed as ($\frac{x-x_0}{x_1-x_0}$,$\frac{y-y_0}{y_1-y_0}$,$\frac{z-z_0}{z_1-z_0}$), where $x_0$ and $y_0$ are the coordinates of the western and southern grid points and $z_0$ the (interpolated) height of the lower level. Accordingly, ($x_1$,$y_1$,$z_1$) is the position of the upper northeastern corner.
 
 %Sampling at $rlon$ $rlat$ $z$: The xy-coordinates of the 8 relevant grid points are easily computed from $rlon$ and $rlat$ (($rlon$-$rlon_min$)/$drlon$ etc). Each of the three axes has two associated weights. A local level-to-height map is built using a weighted sum of the nearby level heights. A binary search on this local level-to-height map gives the weights for the z-axis. The final value is then computed using simple trilinear interpolation.
 
 
 \subsection{Using adjacent level heights}\label{sec:zsampling_mine}
 %Same xy-weights, but replace the 2 fixed z-weights by separate ones for each corner. It is different.
-Finding the grid coordinates of ($x$,$y$) and the bilinear interpolation weights $\alpha$ and $\beta$ along the $rlon$ and $rlat$ axes is the same as in the previous subsection.
+The grid coordinates of ($x$,$y$) and the bilinear interpolation weights $\alpha$ and $\beta$ along the $rlon$ and $rlat$ axes are computed the same way as in the previous subsection.
 
-The lower part of figure \ref{fig:sample_z} shows how we compute the interpolated value at the orange sample point. On each of the four (two in the picture) columns, we compute interpolation weights $\gamma_i = \frac{z-z_{0i}}{z_{1i}-z_{0i}}$ after finding lower and upper heights $z_{0i}$ and $z_{1i}$ with a binary search on column $i$ in $HHL$. The last step is bilinearly interpolating between those four values. The weights for the horizontal interpolation (magenta and dark red in the picture) are the same that LAGRANTO uses. For the vertical interpolation, LAGRANTO uses only one set of weights ($\gamma$ and $1-\gamma$). Our version has different weights on each column (the pairs for $\gamma_l$ and $\gamma_r$ are visible in the picture), making the sampling process slightly more complicated and hopefully accurate.
+The lower part of figure \ref{fig:sample_z} shows how we compute the interpolated value at the sample point. On each of the four (two in the picture) columns, we compute interpolation weights $\gamma_i = \frac{z-z_{0i}}{z_{1i}-z_{0i}}$ after finding lower and upper heights $z_{0i}$ and $z_{1i}$ with a binary search on column $i$ in $HHL$. The last step is bilinearly interpolating between those four values. As mentioned, the weights $\alpha$ and $\beta$ for the horizontal interpolation are the same that LAGRANTO uses. For the vertical interpolation, LAGRANTO uses only one set of weights ($\gamma$ and $1-\gamma$). Our version has different weights on each column (the pairs for $\gamma_l$ and $\gamma_r$ are visible in the picture), making the sampling process slightly more complicated and hopefully accurate.
 % Instead of interpolating values between two local height levels we instead choose to sample a value at each of the four pillars and bilinearly interpolate those.
 %Unlike LAGRANTO we do not construct a local height map and then interpolate between values on the upper and lower level. Instead we compute four values at the pillars nearby and combine those into the final sample value by bilinear interpolation. This method should be less vulnerable to problems that arise from having grid points on the same level but different actual heights.
 
@@ -159,25 +167,27 @@ The results from the particle tracing are written into a NetCDF file which conta
 \label{fig:outputformat}
 \end{figure}
 
-The number of elements per array is $N_{tra}\cdot(N_{steps}+1)$, where the number of trajectories is $N_{tra}$ and $N_{steps}$ is the number of integration steps. The arrays are ordered according to timestep first and  trajectory second. Figure \ref{fig:outputformat} shows an example with $2$ arrays, $3$ trajectories (gray, red, blue), and $5$ timesteps, for a total of $18$ elements per array.
+The number of elements per array is $N_{tra}\cdot(N_{steps}+1)$, where the number of trajectories is $N_{tra}$ and $N_{steps}$ is the number of integration steps. The arrays are ordered according to timestep first and  trajectory second. Figure \ref{fig:outputformat} shows an example with $2$ arrays ($x$ and $y$), $3$ trajectories (gray, red, blue), and $5$ timesteps (plus the initial state), for a total of $18$ elements per array.
 
-This format matches the output file of LAGRANTO, allowing us to compare the results directly.
+This format matches the output file of LAGRANTO, allowing us to compare the results directly. It should be noted that while LAGRANTO uses ($rlon$,$rlat$) for the computations, the output only contains coordinates in ($lon$, $lat$) by default.
 
 \section{Analysis}
 %How do we evaluate our results?
 
-Qualitative:
+\subsection{Qualitative}
 %Visualize trajectories, check if my results and those from LAGRANTO look similar. scale down z, rlon or lon
-We visualize the trajectories using VTK (\cite{src:vtk}). The trajectories are loaded from an output file and drawn in 3D. The user can move the camera to get a better view. A surface obtained from $HHL$ is also displayed to give a context beyond just the trajectory shape.
+We visualize the trajectories using VTK (\cite{src:vtk}). The trajectories are loaded from an output file and drawn in 3D. The user can move the camera to get a better view. A surface obtained from $HSURF$ is also displayed to give a context beyond just the trajectory shape.
 
-$rlon$ and $rlat$ or $lon$ and $lat$ (depending on the settings) correspond to the $x$ and $y$ axes of the renderer. For comparing the results to those from LAGRANTO, the global coordinates ($lon$,$lat$) are used because LAGRANTO includes only those in its output. The coordinates on the vertical axis $z$ are rescaled by a factor of  $5\cdot 10^{-5}$. While this rescaling does not lead to exact proportions (one unit in horizontal direction does not correspond to the same distance as one unit in vertical direction), it helps make the shapes recognizable. The rescaling is necessary because the $x$ and $y$ values are in degrees and the $z$ values are in meters.
+$rlon$ and $rlat$ or $lon$ and $lat$ (depending on the settings) correspond to the $x$ and $y$ axes of the renderer. For comparing the results to those from LAGRANTO, the global coordinates ($lon$,$lat$) are used because LAGRANTO includes only those in its output. The coordinates on the vertical axis $z$ are rescaled by an arbitrary factor of $5\cdot 10^{-5}$. While this rescaling does not lead to exact proportions (one unit in horizontal direction does not correspond to the same distance as one unit in vertical direction), it helps make the shapes recognizable. The rescaling is necessary because the $x$ and $y$ values are in degrees and the $z$ values are in meters.
 
-Quantitative:
+\subsection{Quantitative}
 % Assuming two trajectories ($p_0$, $p_1$, $p_2$, ..., $p_N$) and ($q_0$, $q_1$, $q_2$, ..., $q_N$), we measure the distance between them as $\sum{|p_i - q_i|}$?
 % Try again:
 We compare different integrators by giving them the same input and measuring the average distance between their outputs over time. We split the distance into a horizontal and vertical component because the units are different and the total distance would be dominated by the much more chaotic vertical part otherwise.
 
 We use the output from LAGRANTO as a reference and look how the difference to our method evolves over time.
+
+Regarding the performance, we run simulations with the same integrator settings and initial points using both LAGRANTO and our method. We measure the time needed for several differently-sized sets of initial points.
 
 % outdated: Given two trajectories, we want to measure how different they are by integrating the distance between their current positions over the tracing duration. Assuming two point sets ($p_0$, $p_1$, $p_2$, ..., $p_N$) and ($q_0$, $q_1$, $q_2$, ..., $q_N$), the distances will be ($|p_0-q_0|$,$|p_1-q_1|$,$|p_2-q_2|$, ...,$|p_N-q_N|$). For approximating the integrated distance, we need times $t_i$ associated with each point in addition to the spatial coordinates. The final trajectory distance is computed as $\Sigma^N_{i=0} w_i \cdot |p_i-q_i|$, where $w_i$ is usually equal to the timestep $h$ (assuming a constant timestep). For the initial points $p_0$,$q_0$ as well as the final points $p_N$,$q_N$ it is $\frac{h}{2}$ instead. More generally, $w_i$ is equal to $\frac{t_{i+1}-t_{i-1}}{2}$ (assume $t_{-1} = t_0$ and $t_{N+1} = t_N$).
 

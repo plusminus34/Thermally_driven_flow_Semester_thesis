@@ -4,9 +4,12 @@
 \chapter{Introduction}
 
 A common problem in meteorology is to find wind trajectories with certain properties, e.g. passing through a certain region, carrying particularly warm or humid air, etc.
-LAGRANTO \cite{src:lagranto} is an existing tool for computing trajectories from wind velocity fields. We aim to create a similar program in a more modern programming language - C++ as opposed to Fortran. While reconstructing LAGRANTO is our base goal, we would like to get better performance and/or results as well.
-We succeeded in reproducing the results from LAGRANTO. Along the way, we discovered a few questionable algorithmic choices in the LAGRANTO code, some of which were later reimplemented for comparison purposes.
-% a few problems(TODO "problems") in the LAGRANTO code became apparent
-% we found a few elements in the LAGRANTO code which were of questionable correctness,
+LAGRANTO (\cite{src:lagranto}) is an existing Fortran-based program for computing trajectories from wind velocity fields.
+We aim to create a similar program in C++. While reconstructing LAGRANTO is our base goal, we would like to get better performance and/or results as well.
 
-% allowing us to avoid those in our version.
+There are LAGRANTO variants for different types of input data. We work with the COSMO version because all our input data is in the COSMO model.
+
+For the visualization, we use VTK, the Visualization Tool Kit (\cite{src:vtk}.
+%
+
+%Then ... what else is needed here?

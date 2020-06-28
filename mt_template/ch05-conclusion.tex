@@ -1,33 +1,34 @@
 \chapter{Conclusion}
 
-% did it work
-% what should be improved
-% future work
-% etc
+The basic functionality of computing trajectories according to input data works well. The visualization and analysis parts ended up rather limited due to time constraints.
 
-everything is great
+Comparing to LAGRANTO: Better performance and arguably better results have been achieved. Some features are missing but would be quite simple to add (initial points read from a file, write down only every $n$th iteration).
 
-all questions have been answered
+There are still some differences in our variant to reproduce LAGRANTO results: Points outside the domain are not handled the same way as in LAGRANTO. LAGRANTO uses fixed units vor certain variables (e.g. temperature in Celsius) whereas our code simply uses the values from the data files.
 
-nobody has to work on this topic ever again
+While the particle tracer works, it can still be extended. Because the region of interest for this project was relatively small and compact, the solver can not handle trajectories that reach the boundaries of the coordinate system (poles, date line). The borders of the local domain hold issues as well. Particles near the ground and outside the ($rlon$,$rlat$) domain are handled differently between LAGRANTO and our code and both methods lead to undesirable results sometimes. The parallelization of the solver is currently very simple and could most likely be improved in several ways. One feature that is missing when compared to LAGRANTO is reading input data that is not in the COSMO format.
 
-...
+The visualization with VTK is very limited. While it is possible to read trajectories and show how they pass over the landscape, most settings are hardcoded. Displaying different trajectories or changing the variables requires changing the code. Optimally this would have been done using a GUI. Currently all loaded trajectories are displayed at once and there is no way to, for example, select only those that pass through a certain region or those with a certain average temperature.
 
-that was a joke
+Although it is possible obtain trajectories and look at them, we did not really look into the non-technical results. The search for interesting events would become much easier if the visualization tool was extended first. As is, we mostly found common features like wave-shaped trajectories.
 
-\section{more serious}
-Overall, it's fine. It is possible to compute trajectories and view them without bugs. Performance-wise, our code runs significantly faster than LAGRANTO.
+%Originally there were plans for more postprocessing, visitation maps, finding cool stuff in the visualization...TODO
 
-There are several possible extensions:
+%\section{old)}
+%looking at the task description: hmmm, originally it was more about visualizing and looking for features
 
-- Improving the input interface so it is possible to read most parameters from files instead of entering them manually each time
+%Overall, it's fine. It is possible to compute trajectories and view them without bugs. Performance-wise, our code runs significantly faster than LAGRANTO.
 
-- Parallelizing more: Currently the loop for propagating all trajectories is parallelized with OpenMP in a very simple manner. That is all.
+%There are several possible extensions:
 
-- Better solver: Who knows if I really did it right?
+%- Improving the input interface so it is possible to read most parameters from files instead of entering them manually each time
 
-- Different outputs: Maybe you want something other than just points?
+%- Parallelizing more: Currently the loop for propagating all trajectories is parallelized with OpenMP in a very simple manner. That is all.
 
-- The viewer has only very basic functionality. Most settings are hardcoded and there is no GUI to speak of.
+%- Better solver: Who knows if I really did it right?
+
+%- Different outputs: Maybe you want something other than just points?
+
+%- The viewer has only very basic functionality. Most settings are hardcoded and there is no GUI to speak of.
 
 

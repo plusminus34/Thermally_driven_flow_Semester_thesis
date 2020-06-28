@@ -5,11 +5,14 @@
 %TODO mention papers,   size of data(resolution, number of time steps, etc)
 % http://www.cosmo-model.org/ is about the COSMO model
 \section{Data}\label{sec:data}
-We work on a set of NetCDF files containing assorted meteorological data. Most of the files contain data at a certain point in time and have names like "lfff00000000.nc". The number in the filename corresponds to the time past the reference time using the format DDHHMMSS, so for example "lfff00015000.nc" would contain the data at one hour and fifty minutes. In addition there is a file "lfff00000000c.nc" (note the c) which holds constant variables like the height of the surface.
+We work on a set of NetCDF files containing assorted meteorological data in the COSMO model. Most of the files contain data at a certain point in time and have names like "lfff00000000.nc". The number in the filename corresponds to the time past the reference date using the format DDHHMMSS, so for example "lfff00015000.nc" would contain the data at one hour and fifty minutes. In addition, there is a file "lfff00000000c.nc" (note the c) which holds constant variables like the height of the surface. The reference time for our data is $2016$, Nov, $21$, $00:00$ and the files go from "lfff00000000.nc" (reference date) to "lfff03225000.nc" ($3$ days $22$ hours $50$ minutes later) with $10$ minutes between files.
+%lfff000000 in LAGRANTO: P201611210000
+%there are files until lfff 03 22 50 00	(3 days, 22 hours, 50 minutes)
+% eac file is 4 GB, in total there are 2.13 TB
 
 Most of the important variables are stored as three-dimensional arrays. The three dimensions are called $rlon$, $rlat$ and $level$. $rlon$ and $rlat$ are coordinates in a rotated geographical coordinate system. The $level$s correspond to the vertical position of a point, but it is not a simple linear transformation. Instead, the constants file holds the necessary information to convert $level$s to actual height. Further details can be found in section \ref{sec:conversion}. Unless noted otherwise, the grid size for our data is always $1158 \times 774 \times 80$.
 
-Table \ref{tab:variables} gives an overview of the most interesting variables. The three variables $UVW$ define the velocity field: $U$ is the eastward (in the rotated system) component of the wind, $V$ the northward component, and $W$ the northward component. All three have the same units (m/s) and similar but not equal grids. The grids are all staggered: All  vertices in one grid are translated by half a cell in one direction. Section \ref{sec:destaggering} describes how the staggered grids are handled.
+Table \ref{tab:variables} gives an overview of the most interesting variables. The three variables $UVW$ define the velocity field: $U$ is the eastward (in the rotated system) component of the wind, $V$ the northward component, and $W$ the upward component. All three have the same units (m/s) and similar but not equal grids. The grids are staggered: All vertices in one grid are translated by half a cell size in one direction. Section \ref{sec:destaggering} describes how the staggered grids are handled.
 
 $HHL$ maps the $level$ of a grid point to a physical height. Like $W$, it is staggered in the vertical direction and needs to be destaggered before it can be used with most other variables. $HHL$ is important because the particle positions have a real height in meters as their third component and there needs to be a way to find grid coordinates from the particle position.
 
@@ -34,23 +37,20 @@ $RELHUM$ & relative humidity & 3 & no & none & \% \\ \hline
 \caption{Important variables}
 \label{tab:variables}
 \end{table}
-%Sample references are~\cite{Zwicker04Perspective} and~\cite{Altman89QuaternionScandal}.
 
 \section{Destaggering}\label{sec:destaggering}
 \begin{figure}
-% yay, embedded text
 \centering \includegraphics*[width=0.5\textwidth]{figures/0613_staggering}
 \caption{Left: Points in staggered grids; Right: Destaggering by averaging two staggered points}
 \label{fig:destaggering}
 \end{figure}
 $U$, $V$, $W$ and $HHL$ are given in staggered grids, recognizable by using $srlon$, $srlat$ and $level1$ for certain axes. The staggered grid coordinates lie halfway between the unstaggered grid points. Destaggering is done by averaging the values at two vertices that are adjacent in the staggering direction, then storing the result at the grid position between those vertices. Figure \ref{fig:destaggering} shows how staggered ($srlon$, $rlat$) and ($rlon$, $srlat$) grids are converted to ($rlon$, $rlat$). The image also shows that the destaggered version of the grid has one row/column less than the staggered original.
 
-The dimensions of the $UVW$ grid are effectively $1157 \times 773 \times 80$. Compared to the default size, this is one element less in $rlon$ and $rlat$. The number of $level$s remains at $80$ because the staggered axis $level1$ has size $81$.
+The dimensions of the $UVW$ grid are effectively $1157 \times 773 \times 80$. Compared to the default size, this is one element less in $rlon$ and $rlat$. The number of $level$s remains at $80$ because the staggered axis $level1$ has size $81$.% In the LAGRANTO code, the grids remain at size $1158 \times 774 \times 80$ , so two slices on the boundary are still staggered
 
 \section{Conversion between coordinate systems}\label{sec:conversion}
 The velocities $U$, $V$, $W$, as well as other variables like temperature, are defined on a regular grid with axes corresponding to ($rlon$, $rlat$, $level$).
 
-%TODO degree symbols 
 $rlon$ and $rlat$ can be converted into $lon$ and $lat$ given the (global) coordinates of the rotated north pole ($\lambda_{pole}$, $\phi_{pole}$). In our data, $\phi_{pole}$ is always $43^{\circ}$ and $\lambda_{pole}$ is $-170^{\circ}$ Converting coordinates ($\lambda_r$, $\phi_r$) in the rotated system to the global coordinates ($\lambda_g$, $\phi_g$) is done as follows: 
 \begin{equation}
 		\phi_g = \sin^{-1} ( \cos \phi_{pole} \cdot \cos \phi_r \cdot \cos \lambda_r + \sin \phi_{pole} \cdot \sin \phi_r );
@@ -73,7 +73,8 @@ $rlon$ and $rlat$ can be converted into $lon$ and $lat$ given the (global) coord
 %There are a few extra steps involved to ensure that $\lambda isin [-180,180]$ and $\phi elementof [-90,90]$
 
 The vertical coordinates $z$ are given in meters above sea level and need to be mapped to grid levels. To that purpose, we have the time-invariant scalar field $HHL$ which maps (staggered) levels at specific grid points to their height.
-The fact that the values are stored in a regular grid that corresponds to an irregular real shape means that one needs to be careful when interpolating values given at coordinates between grid points. Two possible methods are discussed in the following chapter.
+
+The fact that the values are stored in a regular grid that corresponds to an irregular real shape means that one needs to be careful when interpolating values given at coordinates between grid points. Two possible methods are discussed in the following chapter in section \ref{sec:z_sampling}.
 
 
 
