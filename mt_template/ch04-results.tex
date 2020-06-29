@@ -1,13 +1,53 @@
 \chapter{Results}
 
 \section{A look at trajectories}
+
 \begin{figure}
-\centering \includegraphics*[width=0.9\textwidth]{figures/0627_sued}
+\centering
+\begin{tikzpicture}
+\node[anchor = center, inner sep=0] at (0,0) {\includegraphics*[width=0.9\textwidth]{figures/0627_sued}};
+
+\node[anchor = north west, inner sep=0] at (7,2) {\includegraphics*[width=0.02\textwidth, height=0.1\textwidth]{figures/farbverlauf_T_1_2}};
+\node[anchor = west,  inner sep=0] at (7.5, 2) {$20^{\circ}$ C};
+\node[anchor = west,  inner sep=0] at (7.5, 0.5) {$-18.0^{\circ}$ C};
+
+\node[anchor = north east, inner sep=0] at (-7,-4) {\includegraphics*[width=0.02\textwidth, height=0.1\textwidth]{figures/farbverlauf_P}};
+\node[anchor = east,  inner sep=0] at (-7.5, -4) {$105 kPa$};
+\node[anchor = east,  inner sep=0] at (-7.5, -5.5) {$49.1 kPa$};
+
+\node[anchor = north west, inner sep=0] at (7,-4) {\includegraphics*[width=0.02\textwidth, height=0.1\textwidth]{figures/farbverlauf_RELHUM}};
+\node[anchor = west,  inner sep=0] at (7.5, -4) {$100 \%$};
+\node[anchor = west,  inner sep=0] at (7.5, -5.5) {$0 \%$};
+
+%\draw[pink, thick] (-2,-2) rectangle (2,2);
+%\draw[yellow, thick] (-4,-4) rectangle (4,4);
+%\draw[cyan, thick] (-6,-6) rectangle (6,6);
+\end{tikzpicture}
 \caption{Color according to: Trajectory index(top left), temperature(top right), pressure(bottom left), relative humidity(bottom right)}
 \label{fig:2by2_sued}
 \end{figure}
+
 \begin{figure}
-\centering \includegraphics*[width=0.9\textwidth]{figures/0627_chur}
+\centering
+\begin{tikzpicture}
+\node[anchor = center, inner sep=0] at (0,0) {\includegraphics*[width=0.9\textwidth]{figures/0627_chur}};
+
+\node[anchor = north west, inner sep=0] at (7,2) {\includegraphics*[width=0.02\textwidth, height=0.1\textwidth]{figures/farbverlauf_T_2_9}};
+\node[anchor = west,  inner sep=0] at (7.5, 2) {$20^{\circ}$ C};
+\node[anchor = west,  inner sep=0] at (7.5, 0.5) {$-70.6^{\circ}$ C};
+
+\node[anchor = north east, inner sep=0] at (-7,-2) {\includegraphics*[width=0.02\textwidth, height=0.1\textwidth]{figures/farbverlauf_P}};
+\node[anchor = east,  inner sep=0] at (-7.5, -2) {$105 kPa$};
+\node[anchor = east,  inner sep=0] at (-7.5, -3.5) {$11.0 kPa$};
+
+\node[anchor = north west, inner sep=0] at (7,-2) {\includegraphics*[width=0.02\textwidth, height=0.1\textwidth]{figures/farbverlauf_RELHUM}};
+\node[anchor = west,  inner sep=0] at (7.5, -2) {$100 \%$};
+\node[anchor = west,  inner sep=0] at (7.5, -3.5) {$0 \%$};
+
+%\draw[pink, thick] (-2,-2) rectangle (2,2);
+%\draw[yellow, thick] (-4,-4) rectangle (4,4);
+%\draw[cyan, thick] (-6,-6) rectangle (6,6);
+\end{tikzpicture}
 \caption{Colors according to same criteria as in figure \ref{fig:2by2_sued} above. The colors in the upper left case also depend on the trajectory set: Purple/blue forward, orange/black backward}
 \label{fig:2by2_chur}
 \end{figure}
@@ -17,7 +57,7 @@
 
 Figures \ref{fig:2by2_sued} and \ref{fig:2by2_chur} show examples of trajectories we computed and visualized. In the top left part, each trajectory has a constant color which depends on its index: Starting at blue for the first trajectory and ending at purple. Figure \ref{fig:2by2_chur} includes another color scheme (black-orange) for the trajectories that were computed with a negative timestep. The upper right part of is colored according to temperature: Blue is cold, white is $0^{\circ}$C, red is warm. The lower two sections visualize pressure (red at high values, bright at low ones) and relative humidity (yellow at $0 \%$ and blue at $100 \%$).
 
-Figure \ref{fig:2by2_sued} shows a set of trajectories starting on the south side of the alps. The particles start at $13:00$ of the second day ($22. $Nov$ 2016$) at a latitude of $45.2 ^{\circ} N$ and are traced for $5$ hours as they move north. The initial points are spread across $7.5 - 10.5 ^{\circ} E$ in $lon$-direction and $2500 - 3000 m$ in height. The three variables temperature, pressure and humidity appear to be strongly correlated: The colors have similar patterns, starting cold/high/humid and becoming significantly warmer/lower/drier after passing the mountains.
+Figure \ref{fig:2by2_sued} shows a set of trajectories starting on the south side of the alps. The particles start at $13:00$ of the second day ($22. $Nov$ 2016$) at a latitude of $45.2 ^{\circ} N$ and are traced for $5$ hours as they move north. The initial points are spread across $7.5 - 10.5 ^{\circ} E$ in $lon$-direction and $2500 - 3000 m$ in height. The three variables temperature, pressure and humidity appear to be strongly correlated: The colors have similar patterns, starting cold/high/humid and becoming warmer/lower/drier after passing the mountains.
 
 Figure \ref{fig:2by2_chur} shows several trajectories passing over Chur (around $9.53 ^{\circ}E$ $46.85^{\circ} N$). The starting time for the simulation is midnight between the $22.$ and $23.$ November. The integration time is $3$ hours in both directions (so from $21:00$ to $3:00$). Temperature and pressure behave as expected, becoming lower at higher altitudes. The relative humidity seems to have two wet and dry regions each.
 
@@ -26,10 +66,22 @@ Figure \ref{fig:2by2_chur} shows several trajectories passing over Chur (around 
 \caption{A closer look of the top left part of figure \ref{fig:2by2_sued}}
 \label{fig:zooming}
 \end{figure}
-Figure \ref{fig:zooming} shows a zoomed-in view where one can see how trajectories make wave shapes over the mountains. In the right part one can also see a few cases where a trajectory suddenly jumps up (TODO actually not very visible, so ... good?). These jumps happen when the trajectory goes trough the ground. LAGRANTO has a similar behaviour and in both cases it can be disabled with an optional flag (in which case trajectories that leave the domain end there).
+Figure \ref{fig:zooming} shows a zoomed-in view where one can see how trajectories make wave shapes over the mountains. Less visible are the jumps that happen when the trajectory goes trough the ground. LAGRANTO has a similar behaviour and in both cases it can be disabled with an optional flag (in which case trajectories that leave the domain end there).
 
+%\begin{figure}
+%\centering \includegraphics*[width=0.9\textwidth]{figures/0627_highanddry}
+%\caption{Relative humidity is high below and low above}
+%\label{fig:highanddry}
+%\end{figure}
 \begin{figure}
-\centering \includegraphics*[width=0.9\textwidth]{figures/0627_highanddry}
+\centering
+\begin{tikzpicture}
+\node[anchor = center, inner sep=0] at (0,0) {\includegraphics*[width=0.9\textwidth]{figures/0627_highanddry}};
+
+\node[anchor = north west, inner sep=0] at (7,-1) {\includegraphics*[width=0.02\textwidth, height=0.1\textwidth]{figures/farbverlauf_RELHUM}};
+\node[anchor = west,  inner sep=0] at (7.5, -1) {$100 \%$};
+\node[anchor = west,  inner sep=0] at (7.5, -2.5) {$0 \%$};
+\end{tikzpicture}
 \caption{Relative humidity is high below and low above}
 \label{fig:highanddry}
 \end{figure}
@@ -58,7 +110,7 @@ Figure \ref{fig:highanddry} shows that the air high above ($14 - 16 km$) has low
 \label{fig:plot_dt5}
 \end{figure}
 
-The plots in figure \ref{fig:plot_dt5} plot the difference between trajectories computed by LAGRANTO and five variants of our tracing algorithm. All values are averaged over around $7000$ trajectories. The five variants are:
+The plots in figure \ref{fig:plot_dt5} plot the difference between trajectories computed by LAGRANTO and five variants of our tracing algorithm. All values are averaged over around $7000$ trajectories (some of which are pictured in figuer \ref{fig:traj_for_plot}). The five variants are:
 \begin{itemize}
 \item Copying LAGRANTO: Settings to perform almost exactly the same operations as LAGRANTO
 \item Sample W correctly: Examining the LAGRANTO code showed that the vertical velocity $W$ was being sampled on a staggered grid even after it had been destaggered. This is an error.
@@ -66,17 +118,22 @@ The plots in figure \ref{fig:plot_dt5} plot the difference between trajectories 
 \item Runge-Kutta instead of Iterative Euler: Changes the ODE solver.
 \item All improvements: Combines the three variants above.
 \end{itemize}
-%TODO visualize trajectories as well?
 
-All trajectories start and end within the boundaries of the domain. Frequent collisions with the ground would distort the results significantly and have been avoided by the choice of starting positions (the starting heights are at least $7 km$) and by not tracing particles for too long.
+\begin{figure}
+\centering \includegraphics*[width=0.5\textwidth]{figures/trajectories_for_plots}
+\caption{Trajectories that feed into the plots of figure \ref{fig:plot_dt5}. use better pic? btw pink means lagranto} %TODO language!
+\label{fig:traj_for_plot}
+\end{figure}
 
-What can be seen is that the black line (representing the LAGRANTO-like setting) stays at a very low value. There are small variations, but we can reproduce the LAGRANTO results almost exactly.
+The test trajectories should not leave the domain because we handle particles outside in a different way than LAGRANTO. As seen in figure \ref{fig:traj_for_plot}, all trajectories start and end at acceptable ($lon$,$lat$) coordinates. Collisions with the ground are avoided by initialising all particles at heights of at least $7 km$. There is a very small number of trajectories that reach the surface when the time step is $h = 5 min$. This is unfortunate because it distorts the plots, even though the effect is lessened by averaging with several thousand unproblematic trajectories.
 
-The right side which measures the average vertical distance looks very chaotic and is not very useful for gathering information. The reason for this is unclear. It is possibly related to how trajectories have wave shapes when passing over mountains.
+What can be seen in the plots of figure \ref{fig:plot_dt5} is that the black line (representing the LAGRANTO-like setting) stays at a very low value. There are small variations, but apart from the boundary cases we can reproduce the LAGRANTO results almost exactly.
 
-The choice of integrator does not matter that much for small timesteps, but in the case of $h=5min$ the Runge-Kutta curve dominates the left plot. When viewing the actual trajectories, the Runge-Kutta trajectories are usually better at following the shape of the landscape.%TODO picture for that?
+The right side which measures the average vertical distance looks very chaotic and is not very useful for gathering information. The reason for this is unclear.
 
-It appears that how to sample across $level$s makes more of a difference than correcting the sampling of $W$. The fact that both of those affect the $z$ axis may be another factor in the irregular curves on the right side.
+The choice of integrator does not matter that much for small timesteps, but in the case of $h = 5 min$ the Runge-Kutta curve dominates the left plot. This is expected because the Euler integrator works worse with larger timesteps. Curiously, the green curve stays closer to the other methods, even though it also uses the Runge-Kutta integrator.
+
+It appears that the choice of how to sample across $level$s makes more of a difference than correcting the sampling of $W$. The fact that both of those affect the $z$ axis may be another factor in the irregular curves on the right side.
 
 \section{Performance}
 
@@ -90,7 +147,9 @@ There are two main performance bottlenecks: Reading the data and doing computati
 
 Figure \ref{fig:plot_time} plots the measured times for a test case of computing different numbers of trajectories. As expected, the time scales linearly in the number of trajectories. Our method is faster than LAGRANTO in all cases. In the early part, where the reading of the data makes up almost all of the time, our version does in roughly $1.5$ minutes what LAGRANTO does in $4$. Increasing the number of trajectories, it becomes evident that our version also has a better scaling, even when unparallelized.
 
+It is possible that the rather slow speed of LAGRANTO is due to not using optimal compiler options for the chosen problem and the computer used.
 %TODO test against length of simulation.
+%TODO mention suboptimal LAGRANTO settings
 
 All time measurements were taken on the same machine: It has an Intel\textsuperscript{\textregistered} Core\textsuperscript{\texttrademark} i5-3427U CPU with $4$ cores running at $1.80$ GHz with $7.7$ GiB of memory.
 
