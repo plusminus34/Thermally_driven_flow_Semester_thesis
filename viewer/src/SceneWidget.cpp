@@ -36,21 +36,26 @@ void SceneWidget::CreateTestScene()
 
 	bool build_landscape = false;// TODO check if file exists automatically
 	bool use_rotated = false;//use rlonrlat (if false, lonlat are used)
-	int trajectory_set = 7;
+	int trajectory_set = 9;
 	int colordisplay = 3;//0: RGB, 1: Temperature, 2: Pressure, 3: relative humidity 
 
 	// potentially modified by trajectory set
-	int line_limit = 100;
+	int line_limit = 100000;
 	int line_increment = 1;// only draw every x-th line
+	int maxtime = 999999;
 
 	// constants for mapping variables to colors?
-	float T_min = 253.15f; int r_T_min = 50; int g_T_min = 50; int b_T_min = 255;
-	float T_0 = 273.15f;   int r_T_0 = 222;  int g_T_0 = 222; int b_T_0 = 222;
-	float T_max = 293.15f; int r_T_max = 255; int g_T_max = 150; int b_T_max = 50;
-	float P_min = 1; int r_P_min = 180; int g_P_min = 255; int b_P_min = 210;
-	float P_max = 2; int r_P_max = 180; int g_P_max = 20; int b_P_max = 20;
-	float RELHUM_min = 0; int r_RELHUM_min = 200; int g_RELHUM_min = 200; int b_RELHUM_min = 40;
-	float RELHUM_max = 1; int r_RELHUM_max = 0; int g_RELHUM_max = 0; int b_RELHUM_max = 255;
+	float T_min = 263.15f; int r_T_min = 50; int g_T_min = 50; int b_T_min = 255;
+	float T_0 = 273.15f;   int r_T_0 = 222;  int g_T_0 = 200; int b_T_0 = 222;
+	float T_max = 293.15f; int r_T_max = 255; int g_T_max = 100; int b_T_max = 50;
+	float P_min =  65000; int r_P_min = 180; int g_P_min = 255; int b_P_min = 210;
+	float P_max = 105000; int r_P_max = 180; int g_P_max = 20; int b_P_max = 20;
+	float RELHUM_min = 0; int r_RELHUM_min = 250; int g_RELHUM_min = 200; int b_RELHUM_min = 40;
+	float RELHUM_max = 100; int r_RELHUM_max = 50; int g_RELHUM_max = 0; int b_RELHUM_max = 255;
+
+	bool T_in_kelvin = true;
+	if (!T_in_kelvin) { T_min -= T_0; T_max -= T_0; T_0 -= T_0; }
+
 
 	// display surface
 	vtkNew<vtkPolyDataMapper> landscapeMapper;
@@ -171,22 +176,23 @@ void SceneWidget::CreateTestScene()
 			line_increment = 10;
 		}
 		else {
-			files.push_back("../../../outputs/trajectory_luzern_wohin_620.nc");
-			files.push_back("../../../outputs/trajectory_luzern_woher_620.nc");
-			files.push_back("../../../outputs/trajectory_thusis_wohin_620.nc");
-			files.push_back("../../../outputs/trajectory_thusis_woher_620.nc");
-			files.push_back("../../../outputs/trajectory_zermatt_wohin_620.nc");
-			files.push_back("../../../outputs/trajectory_zermatt_woher_620.nc");
-			line_limit = 10000000;
-			line_increment = 1;
+			files.push_back("../../../outputs/trajectory_wohin_a_623_2.nc");
+			files.push_back("../../../outputs/trajectory_woher_a_623_2.nc");
+			files.push_back("../../../outputs/trajectory_wohin_b_623_2.nc");
+			files.push_back("../../../outputs/trajectory_woher_b_623_2.nc");
+			files.push_back("../../../outputs/trajectory_wohin_c_623_2.nc");
+			files.push_back("../../../outputs/trajectory_woher_c_623_2.nc");
+			
+			line_limit = 5000;
+			line_increment = 97;
 		}
 		for (int i = 0; i < files.size(); ++i) {
 			thickness[i] = thickness[0];
-			r[i] = i > 3 ? 255 : 0;
-			g[i] = i < 2 ? 255 : 70;
-			b[i] = i == 2 || i==3 ? 200 : 0;
-			if (i % 2) b[i] += 55;
-			else g[i] -= 70;
+			r[i] = i > 3 ? 200 : 70;
+			g[i] = i < 2 ? 200 : 70;
+			b[i] = i == 2 || i==3 ? 200 : 70;
+			if (i % 2) { r[i] += 55; b[i] += 55; g[i] += 55; }
+			else { r[i] -= 70; b[i] -= 70; g[i] -= 70; }
 		}
 	}
 	else if (trajectory_set == 6) {
@@ -203,6 +209,40 @@ void SceneWidget::CreateTestScene()
 		r[2] = 0;   g[2] = 0;   b[2] = 255; thickness[2] = 1.5;
 		r[3] = 255; g[3] = 0;   b[3] = 0;   thickness[3] = 1;
 	}
+	else if (trajectory_set == 8) {
+		//"numbers"
+		files.push_back("../../../outputs/trajectory_numbers3_meins_3h_dt1.nc");
+		files.push_back("../../../outputs/trajectory_numbers3_lagranto_3h_dt1.4");
+		files.push_back("../../../outputs/trajectory_numbers3_lagrantolike_3h_dt1.nc");
+		files.push_back("../../../outputs/trajectory_numbers3_rungekutta_3h_dt1.nc");
+		files.push_back("../../../outputs/trajectory_numbers3_betterW_3h_dt1.nc");
+		files.push_back("../../../outputs/trajectory_numbers3_4pillars_3h_dt1.nc");
+		//files.push_back("../cmd/trajectory_testr.nc");
+
+		for (int i = 0; i < 6; ++i)thickness[i] = 1;
+		line_increment = 11;
+		line_limit = 7000;
+		maxtime = 36000;
+	}
+	else if (trajectory_set == 9) {
+		//files.push_back("../../../outputs/trajectory_626_breit3_unten_wohin.nc");
+		//files.push_back("../../../outputs/trajectory_626_breit3_unten_woher.nc");
+		//files.push_back("../../../outputs/trajectory_626_breit3_oben_wohin.nc");
+		//files.push_back("../../../outputs/trajectory_626_breit3_oben_woher.nc");
+		r[0] = 150; g[0] = 0; b[0] = 100;
+		r[1] = 220; g[1] = 100; b[1] = 0;
+		r[2] = 100; g[2] = 155; b[2] = 0;
+		r[3] = 0; g[3] = 155; b[3] = 100;
+		//files.push_back("../../../outputs/trajectory_626_nord_woher.nc");
+		//files.push_back("../../../outputs/trajectory_626_sued_wohin.nc");
+		//files.push_back("../../../outputs/trajectory_626_taltest.4");
+		files.push_back("../../../outputs/trajectory_626_taltest_wohin.nc");
+		//files.push_back("../../../outputs/trajectory_626_taltest_wohin_lagrantolike.nc");
+		files.push_back("../../../outputs/trajectory_626_taltest_woher.nc");
+
+		for (int i = 0; i < 6; ++i)thickness[i] = 1;//2 - (i/2);
+		line_increment = 1;
+	}
 
 	
 	vtkNew<vtkNamedColors> colors;
@@ -212,54 +252,69 @@ void SceneWidget::CreateTestScene()
 
 	renderer->AddActor(landscapeActor);
 
-	// Create trajectory actor
+	std::vector<TrajectoryData> td(files.size());
 	for (int file_i = 0; file_i < files.size(); ++file_i) {
-		TrajectoryData td;
-		NetCDF::ReadTrajectoryData(files[file_i], td);
+		NetCDF::ReadTrajectoryData(files[file_i], td[file_i]);
 		assert(td.num_trajectories > 0);
 		assert(td.points_per_trajectory > 0);
+
+		int T_id = td[file_i].get_var_id("T");
+		assert(T_id > -1);
+		if (td[file_i].min_values[T_id] < T_min) T_min = td[file_i].min_values[T_id];
+		else if (td[file_i].max_values[T_id] > T_max) T_max = td[file_i].max_values[T_id];
+
+		int P_id = td[file_i].get_var_id("P");
+		assert(p_id > -1);
+		if (td[file_i].min_values[P_id] < P_min) P_min = td[file_i].min_values[P_id];
+		else if (td[file_i].max_values[P_id] > P_max) P_max = td[file_i].max_values[P_id];
+
+		int hum_id = td[file_i].get_var_id("RELHUM");
+		assert(hum_id > -1);
+		if (td[file_i].min_values[hum_id] < RELHUM_min) RELHUM_min = td[file_i].min_values[hum_id];
+		else if (td[file_i].max_values[hum_id] > RELHUM_max) RELHUM_max = td[file_i].max_values[hum_id];
+	}
+
+	// Create trajectory actor
+	for (int file_i = 0; file_i < files.size(); ++file_i) {
 		vtkNew<vtkPoints> points;
 
 		int x_id, y_id, z_id;
 		if (use_rotated) {
-			x_id = td.get_var_id("rlon");
-			y_id = td.get_var_id("rlat");
+			x_id = td[file_i].get_var_id("rlon");
+			y_id = td[file_i].get_var_id("rlat");
 		}
 		else {
-			x_id = td.get_var_id("lon");
-			y_id = td.get_var_id("lat");
+			x_id = td[file_i].get_var_id("lon");
+			y_id = td[file_i].get_var_id("lat");
 		}
-		z_id = td.get_var_id("z");
+		z_id = td[file_i].get_var_id("z");
 		assert(x_id > -1);
 		assert(y_id > -1);
 		assert(z_id > -1);
 
-		int T_id = td.get_var_id("T"); assert(T_id > -1);
-		int P_id = td.get_var_id("P");
-		int hum_id = td.get_var_id("RELHUM");
-
-		P_min = td.min_values[P_id];
-		P_max = td.max_values[P_id];
-		RELHUM_min = td.min_values[hum_id];
-		RELHUM_max = td.max_values[hum_id];
+		int T_id = td[file_i].get_var_id("T"); assert(T_id > -1);
+		int P_id = td[file_i].get_var_id("P");
+		int hum_id = td[file_i].get_var_id("RELHUM");
 
 		vtkNew<vtkUnsignedCharArray> colors;
 		colors->SetName("color");
 		colors->SetNumberOfComponents(3);
-		colors->SetNumberOfTuples(td.num_trajectories*td.points_per_trajectory);
+		colors->SetNumberOfTuples(td[file_i].num_trajectories * td[file_i].points_per_trajectory);
 
-		for (int i = 0; i < td.num_trajectories; ++i) {
-			for (int j = 0; j < td.points_per_trajectory; ++j) {
-				points->InsertNextPoint(td.val(x_id, i, j), td.val(y_id, i, j), td.val(z_id, i, j) * ZSCALE);
+		for (int i = 0; i < td[file_i].num_trajectories; ++i) {
+			for (int j = 0; j < td[file_i].points_per_trajectory; ++j) {
+				points->InsertNextPoint(td[file_i].val(x_id, i, j), td[file_i].val(y_id, i, j), td[file_i].val(z_id, i, j) * ZSCALE);
 
-				const int ij = i * td.points_per_trajectory + j;
+				const int ij = i * td[file_i].points_per_trajectory + j;
 				if (colordisplay == 0) {
 					//color
+					if (td[file_i].times[j] < maxtime)
 					colors->InsertTuple3(ij, r[file_i], g[file_i], b[file_i]);
+					else colors->InsertTuple3(ij, 111, 123, 135);
 				}
 				else if (colordisplay == 1) {
 					// temperature
-					const float T = td.val(T_id, i, j);
+					const float T = td[file_i].val(T_id, i, j);
 					if (T < T_min) {
 						colors->InsertTuple3(ij, r_T_min, g_T_min, b_T_min);
 					}
@@ -283,7 +338,8 @@ void SceneWidget::CreateTestScene()
 				}
 				else if (colordisplay == 2) {
 					// pressure
-					const float P = td.val(P_id, i, j);
+					float P = td[file_i].val(P_id, i, j);
+					if (files[file_i][files[file_i].size() - 1] == '4') P *= 100;
 					if (P < P_min) {
 						colors->InsertTuple3(ij, r_P_min, g_P_min, b_P_min);
 					}
@@ -300,7 +356,7 @@ void SceneWidget::CreateTestScene()
 				}
 				else if (colordisplay == 3) {
 					// relative humidity
-					const float hum = td.val(hum_id, i, j);
+					const float hum = td[file_i].val(hum_id, i, j);
 					if (hum < RELHUM_min) {
 						colors->InsertTuple3(ij, r_RELHUM_min, g_RELHUM_min, b_RELHUM_min);
 					}
@@ -320,11 +376,11 @@ void SceneWidget::CreateTestScene()
 		//size_t nPts = points->GetNumberOfPoints();
 
 		vtkNew<vtkCellArray> cells;
-		for (int i = 0; i < line_limit*line_increment && i < td.num_trajectories; i+=line_increment) {
+		for (int i = 0; i < line_limit*line_increment && i < td[file_i].num_trajectories; i+=line_increment) {
 			vtkNew<vtkPolyLine> polyLine;
-			polyLine->GetPointIds()->SetNumberOfIds(td.points_per_trajectory);
-			for (unsigned int j = 0; j < td.points_per_trajectory; j++)
-				polyLine->GetPointIds()->SetId(j, j + i * td.points_per_trajectory);
+			polyLine->GetPointIds()->SetNumberOfIds(td[file_i].points_per_trajectory);
+			for (unsigned int j = 0; j < td[file_i].points_per_trajectory; j++)
+				polyLine->GetPointIds()->SetId(j, j + i * td[file_i].points_per_trajectory);
 
 			cells->InsertNextCell(polyLine);
 		}

@@ -152,6 +152,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 	}
 
 	//--------------------- Where particles are traced and paths filled
+	const int lvl_top = hhl->GetResolution()[2] - 1;
 	// compute trajectories
 	int nSteps = ceil((td.time_end - td.time_begin) / dt);
 	double t = td.time_begin;
@@ -176,6 +177,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 		// propagate all active trajectories by one timestep
 		#pragma omp parallel for
 		for (int i = 0; i < td.num_trajectories; ++i) {
+			Vec3f pos_old = position[i];
 			// move position as long if it is within the domain
 			if (position[i][0]>=rlon_min && position[i][0] <= rlon_max
 				&& position[i][1] >= rlat_min && position[i][1] <= rlat_max) {
@@ -184,17 +186,28 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 				else
 					position[i] = tracer.traceParticleIterativeEuler(UVW, position[i], t, dt_real, 3);
 			}
+			else {
+				cout << "OUTSIDE\n";
+			}
 
 			// possibly jump back into the domain
 			if (jump_flag) {
-				if (position[i][0] < rlon_min) position[i][0] += 0.2f;
-				else if (position[i][0] > rlon_max) position[i][0] -= 0.2f;
-				if (position[i][1] < rlat_min) position[i][1] += 0.2f;
-				else if (position[i][1] > rlat_max) position[i][1] -= 0.2f;
-				float h_min = hsurf->Sample(Vec2d(position[i][0], position[i][1]));
+				// z: check HHL for local boundaries
+				const int rlon_i = position[i][0];
+				const int rlat_i = position[i][1];
+				float h_min = hhl->GetVertexDataAt(Vec3i(rlon_i, rlat_i, lvl_top));
+				for (int ii = 1; ii < 4; ++ii) {
+					Vec3i wo(rlon_i + ii / 2, rlat_i + ii % 2, lvl_top);
+					h_min = std::min(h_min, hhl->GetVertexDataAt(wo));
+				}
+				//float h_min = Sample(Vec2d(position[i][0], position[i][1]));
 				float h_max = hhl->Sample(Vec2d(position[i][0], position[i][1], 0));//TODO seems constant
-				if (position[i][2] < h_min) position[i][2] += 200;
-				else if (position[i][2] > h_max) position[i][2] -= 200;
+				if (position[i][2] < h_min) position[i][2] = h_min + 20;
+				else if (position[i][2] > h_max) position[i][2] = h_max - 20;
+				else if ((pos_old - position[i]).lengthSquared() < 0.0001f) {
+					//cout << i << ": JUMP UP 10\n";
+					position[i][2] += 10;
+				}
 			}
 
 			const size_t data_i = step_i * td.num_trajectories + i;
@@ -234,8 +247,7 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 
 			for (size_t traj_i=0; traj_i < td.num_trajectories; ++traj_i) {
 				Vec3d coord(td.val(rlon_id,traj_i,step_i), td.val(rlat_id, traj_i, step_i), td.val(z_id, traj_i, step_i));
-				//TODO NOOOOOOOOOOOOOO, don't sample fields at nonlevel-coordinate!
-				{
+				{//TODO move this part into its own function/class (LarantoUVW as well?)
 					double h = coord[2];
 					double lvl_d;
 						int lvl_0 = 0;
@@ -261,13 +273,9 @@ void ImportantPart::computeTrajectoryData(TrajectoryData& td)
 								h0 = hh;
 							}
 						}
-						coord[2] = hh;
-						td.val(id, traj_i, step_i) = fields.Sample(coord, t);
+						coord[2] = clamp(lvl_0 + (h - h0) / (h1 - h0) - 0.5, 0.0, hhl->GetResolution()[2] - 2.0);
+												td.val(id, traj_i, step_i) = fields.Sample(coord, t);
 				}
-				//td.val(id, traj_i, step_i) = fields.Sample(coord, t);
-
-				//if(traj_i == 0)
-				//cout << ": tdval "<< td.val(id, traj_i, step_i) <<endl;
 			}
 		}
 
