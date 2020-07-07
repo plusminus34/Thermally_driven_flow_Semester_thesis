@@ -1,18 +1,34 @@
 \chapter*{Abstract}
 
-%This thesis addresses the development of a novel sample thesis. We analyze the requirements of a general template, as it can be used with the \LaTeX\ text processing system. (And so on\dots) The abstract should not exceed half a page in size!
+% to say here: goal (compute and visualize trajectories)
+%   short intro & background: working with meteorologists for SCIENCE
+%   short method: copying Lagranto
+%   short results: yeah, we can do it
+%   short conclusion: ehh, the visualization part is not very impressive. can u fix it kthxbye
+%also maybe time was a bit too short
 
-The goal of this thesis was to create a tool for computing and displaying wind trajectories. We would then use it to visualize several test cases from meteorological data.% Said data deals with Föhn, a phenomenon that is associated with warm and dry winds in the northern parts of the alps, also bad weather on the south side.
+The goal of this thesis was to create a tool for computing and displaying wind trajectories. 
+This was done in collaboration with meteorologists from the Institute of Atmospheric and Climate Science. Our main contribution is a C++ analogue of the Lagrangian Analyis Tool LAGRANTO.
+%Our main contribution is a C++ replacement for an older Fortran thing
+% combine: Working together with meteorologists from D-USYS we made a C++ analogue of the Lagrangian Analyis Tool LAGRANTO. 
 
-While the focus lay on visualization and analysis of results initially, it later shifted towards reproducing trajectories from a similar tool and improving on that. That worked in the sense that we can obtain trajectories that are practically the same. We can also do it faster and with fewer errors. The visualization part ended up as more of a debugging tool than a user-friendly application.
+%We compared results by visualizing various trajectories obtained from both programs using the same input data.
+To evaluate our results we looked at trajectories obtained from both programs using the same input data.
+We found our implementation to have better speed and accuracy, but we lack some of the features.
 
-% "over the alpine region". LAGRANTO is used as a template for computing trajectories and VTK for drawing the results. While the initial focus was on the visualization, it shifted from making the basics work to comparing results with LAGRANTO over the duration of three months.
+%The goal of this thesis was to create a tool for computing and displaying wind trajectories. It is then used to visualize several test cases from meteorological data.% Said data deals with Föhn, a phenomenon that is associated with warm and dry winds in the northern parts of the alps, also bad weather on the south side.
+
+While the focus lay on visualization and analysis of results initially, it later shifted towards reproducing trajectories from the template and improving on that. This worked in the sense that we can obtain trajectories that are practically the same. The visualization became more of a debugging tool than a user-friendly application in the end.
 
 \cleardoublepage
 \chapter*{Zusammenfassung}
 
-Das Ziel dieser Arbeit war es, ein Tool zur Berechnung und Darstellung von Windtrajektorien zu erstellen. Es würde dann zum Visualisieren etlicher Testfälle aus meteorologischen Daten benutzt werden.% Die Daten beschäftigen sich mit dem Föhn, einem Phänomen das mit warmen und trockenen Winden in den nördlichen Teilen der Alpen verbunden wird. Ausserdem schlechtes Wetter auf der Südseite.
+Das Ziel dieser Arbeit war es, ein Tool zur Berechnung und Darstellung von Windtrajektorien zu erstellen. Dies wurde in Zusammenarbeit mit Meteorologen vom Institut für Atmosphäre und Klima getan. Unsere Hauptleistung ist ein in C++ geschriebenes Programm mit ähnlichen Funktionen wie das Lagrangian Analysis Tool LAGRANTO.
 
-Obwohl der Schwerpunkt ursprünglich auf dem Visualisieren und Analysieren von Resultaten lag, änderte er sich später und es wurde mehr darauf geachtet, dass die Trajektorien aus einem ähnlichen Programm reproduziert und verbessert werden können. Dies funktionierte in der Hinsicht, dass wir praktische identische Trajektorien produzieren können. Dabei können wir es auch schneller und mit weniger Fehlern. Der Visualisierungsteil wurde daher eher zu einem Debuggingwerkzeug als zu einer benutzerfreundlichen Anwendung.
+Um unsere Resultate auszuwerten haben wir Trajektorien angeschaut, die von beiden Programmen mit den gleichen Eingabedaten ausgerechnet wurden. Dabei fanden wir heraus, dass unsere Implementierung besser ist in Sachen Geschwindigkeit und Genauigkeit, dafür fehlen einige der Features.
+
+%Das Ziel dieser Arbeit war es, ein Tool zur Berechnung und Darstellung von Windtrajektorien zu erstellen. Dann wird es zum Visualisieren etlicher Testfälle aus meteorologischen Daten benutzt.% Die Daten beschäftigen sich mit dem Föhn, einem Phänomen das mit warmen und trockenen Winden in den nördlichen Teilen der Alpen verbunden wird. Ausserdem schlechtes Wetter auf der Südseite.
+
+Obwohl der Schwerpunkt ursprünglich auf dem Visualisieren und Analysieren von Resultaten lag, änderte er sich später, und es wurde mehr darauf geachtet, dass die Trajektorien aus der Vorlage reproduziert und verbessert werden können. Dies funktionierte in der Hinsicht, dass wir praktisch identische Trajektorien produzieren können. Der Visualisierungsteil wurde daher eher zu einem Debuggingwerkzeug als zu einer benutzerfreundlichen Anwendung.
 
 %

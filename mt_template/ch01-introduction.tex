@@ -3,20 +3,26 @@
 
 \chapter{Introduction}
 
-A common problem in meteorology is to find wind trajectories with certain properties, e.g. passing through a certain region, carrying particularly warm or humid air, etc.
-LAGRANTO (\cite{src:lagranto}) is an existing Fortran-based program for computing trajectories from wind velocity fields.
-LAGRANTO takes as its input a set of initial points (given by their positions and starting time), settings for the integration, and appropriate data files. Given those, it computes trajectories starting from the initial points and writes them down in an output file.
+A common problem in meteorology is to find wind trajectories with certain properties, for example passing through a certain region, carrying particularly warm or humid air, or possessing a certain type of shape. Data is more often available in the form of fields containing wind velocity, air pressure, temperature, and any number of other parameters for a certain point in time. To go from fields to trajectories it is necessary to initialize air particles somewhere and calculate how their positions change over time when traveling according to the velocity field. 
 
-We aim to create a similar program in C++. While reconstructing LAGRANTO is our base goal, we would like to get better performance and/or results as well.
+This project was done in close collaboration with Dr. Michael Sprenger and Lukas Jansing from the Institute of Atmospheric and Climate Science at ETH Zurich. They provided and explained the data. Other contributions include helping decide the next steps and giving feedback on results. 
+
+LAGRANTO (\cite{src:lagranto_v1} and \cite{src:lagranto}) is an existing Fortran-based program for computing trajectories from wind velocity fields.
+LAGRANTO takes as its input a set of initial points (given by their positions and starting time), settings for the integration (reference time, duration, step size), and appropriate data files. Given those, it computes trajectories starting from the initial points and writes them down in an output file.
+
+We aim to create a similar program in C++. It should be able to produce more or less the same results as LAGRANTO given equivalent inputs. While reconstructing LAGRANTO is our base goal, we would like to get better performance and/or results as well. Running certain parts of the code in parallel should help with the speed.
 
 There are LAGRANTO variants for different types of input data. We work with the COSMO version because all our input data is in the COSMO model (see also \cite{src:cosmo} or \cite{src:cosmo2}). The data was obtained from a local ETH simulation setup similar to MeteoSwiss. It covers four days in November $2016$ where F\"ohn winds from the south cross the Alps.
 
-The trajectories we obtain as our solution are compared to the results from LAGRANTO. We visualize trajectories using VTK, the Visualization Toolkit (\cite{src:vtk}). Looking at the trajectory shapes in 3D allows us to search for both errors and interesting features. %aka bug or feature
-%looking is one step for comparing
-%there are lots of vtk features we do not use
-%we are looking for cool stuff in the pictures
+The trajectories we obtain as our solution are compared to the results from LAGRANTO. We visualize trajectories using VTK, the Visualization Toolkit (\cite{src:vtk}). Looking at the trajectory shapes in 3D allows us to search for errors in the code and interesting features of the data. 
+
+Our viewer should be able to load and render different sets of trajectories. Filtering and coloring trajectories according to user-defined criteria are also important. In the best case, all of this can be done at runtime using a GUI we create for that purpose.
+
 %It contains many features, most of them unused in our case. Mostly we just draw the trajectories as 3D curves and add the underlying geography for context.
 
 %TODO this is really short
 
 %Then ... what else is needed here?
+%getting everything to work was a pain
+%why trajectories and not fields
+%the future ... nope
